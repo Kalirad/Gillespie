@@ -13,17 +13,37 @@ from itertools import *
 from copy import *
 import pickle
 
+
 class Species(object):
-	return obj
+    
+    def __init__(self, name, reaction, count=False):
+        
+        assert type(name) == str
+        assert type(reaction) == list
+        self.name = name
+        self.reaction = reaction
+        if count:
+            self.count = count
+        else:
+            self.count = 0
 
 class RNApol(Species):
-	return obj
-
+    
+    def __init__(self, name, reaction, rate_of_decay, count=False):
+        Species.__init__(self, name, reaction, count=False)
+        self.r_decay = r_decay
+        
 class DNApol(Species):
-	return obj
+    
+    def __init__(self, name, reaction, rate_of_decay, count=False):
+        Species.__init__(self, name, reaction, count=False)
+        self.r_decay = r_decay
 
 class Protein(Species):
-	return obj
+    
+    def __init__(self, name, reaction, rate_of_decay, count=False):
+        Species.__init__(self, name, reaction, count=False)
+        self.r_decay = r_decay
 
 class reaction(object):
 	return obj
