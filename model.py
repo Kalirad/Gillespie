@@ -50,5 +50,5 @@ class reaction(object):
 
 class SSA(object):
 	"""
-	Have different list of reactions for each set of related biological reactions, e.g. Transcription, Translation, and etc. 
+	I dont know whta I am doing. Have different list of reactions for each set of related biological reactions, e.g. Transcription, Translation, and etc. 
 	"""
