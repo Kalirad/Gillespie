@@ -46,7 +46,10 @@ class Protein(Species):
         self.r_decay = r_decay
 
 class reaction(object):
-	return obj
+	def __init__(self, reactants, products, ks):
+	    self.reactants = reactants
+	    self.products = products
+	    self.ks = ks
 
 class SSA(object):
 	"""
