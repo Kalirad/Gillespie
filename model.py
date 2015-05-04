@@ -31,19 +31,19 @@ class RNApol(Species):
     
     def __init__(self, name, reaction, rate_of_decay, count=False):
         Species.__init__(self, name, reaction, count=False)
-        self.r_decay = r_decay
+        self.r_decay = rate_of_decay
         
 class DNApol(Species):
     
     def __init__(self, name, reaction, rate_of_decay, count=False):
         Species.__init__(self, name, reaction, count=False)
-        self.r_decay = r_decay
+        self.r_decay = rate_of_decay
 
 class Protein(Species):
     
     def __init__(self, name, reaction, rate_of_decay, count=False):
         Species.__init__(self, name, reaction, count=False)
-        self.r_decay = r_decay
+        self.r_decay = rate_of_decay
 
 class reaction(object):
 	def __init__(self, reactants, products, ks):
