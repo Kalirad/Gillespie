@@ -1,0 +1,28 @@
+# Reactions
+R1:
+	DNA + Pol  >  C1
+	kon
+
+R2:
+	C1  >  C2
+	kinit
+
+R3:
+	C2  > DNA + Pol + mRNA
+	kelog
+
+R4:
+	mRNA + D > E + F	
+
+
+# Variable Species
+DNA = 1.0
+Pol = 700.0
+Rib = 10000
+
+
+# Parameters
+kon = 4.0e7
+kinit = 1.2
+kelog = 0.23
+kr4 = 0.11
