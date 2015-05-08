@@ -45,13 +45,43 @@ class Protein(Species):
         Species.__init__(self, name, reaction, count=False)
         self.r_decay = rate_of_decay
 
-class reaction(object):
-	def __init__(self, reactants, products, ks):
+class Ribosome(Species):
+
+    def __init__(self, name, reaction, rate_of_decay, count=False):
+        Species.__init__(self, name, reaction, count=False)
+        self.r_decay = rate_of_decay
+
+class Reaction(object):
+
+	def __init__(self, reactants, products, ks, categorty):
 	    self.reactants = reactants
 	    self.products = products
 	    self.ks = ks
+        self.categorty = categorty
 
 class SSA(object):
 	"""
 	I dont know whta I am doing. Have different list of reactions for each set of related biological reactions, e.g. Transcription, Translation, and etc. 
 	"""
+
+    def __init__(self, read=True):
+
+        try:
+            ReadFile
+        except:
+            RaiseError
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

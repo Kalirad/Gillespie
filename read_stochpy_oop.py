@@ -4,7 +4,7 @@ import itertools
 
 
 
-class read(object):
+class ReadFile(object):
     def __init__(self):
 	self.filename = open('input_sample.txt', 'r')
 
