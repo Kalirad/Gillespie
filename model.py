@@ -45,43 +45,46 @@ class Protein(Species):
         Species.__init__(self, name, reaction, count=False)
         self.r_decay = rate_of_decay
 
-class Ribosome(Species):
-
-    def __init__(self, name, reaction, rate_of_decay, count=False):
-        Species.__init__(self, name, reaction, count=False)
-        self.r_decay = rate_of_decay
-
 class Reaction(object):
+    
+    def __init__(self, reactants, products, ks):
+        self.reactants = reactants
+        self.products = products
+        self.ks = ks
 
-	def __init__(self, reactants, products, ks, categorty):
-	    self.reactants = reactants
-	    self.products = products
-	    self.ks = ks
-        self.categorty = categorty
-
-class SSA(object):
-	"""
-	I dont know whta I am doing. Have different list of reactions for each set of related biological reactions, e.g. Transcription, Translation, and etc. 
-	"""
-
-    def __init__(self, read=True):
-
-        try:
-            ReadFile
-        except:
-            RaiseError
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+class NextReactionMethod(object):
+    
+    def __init__(self, num_elong, k_elong, directory):
+        self.num_elong = num_elong
+        self.k_elong = k_elong
+        self.read_from_file(directory)
+        self.create_elong_reactions()
+        
+    
+    @property    
+    def propensity(self):
+        
+        
+    def generate_dep_graph(self):
+        self.dep_graph = {}
+        for i in self.reactions:
+            temp = i.reactants + i.products
+            dep_rec = []
+            for j in rec_list:
+                if set(temp) and set(j.reactants):
+                    dep_rec.append(j)
+            self.dep_graph[i] = dep_rec
+        
+    def create_elong_reactions(self):
+        temp = []
+        for i in range(self.num_elong - 1):
+            rec = Reaction([i], [i + 1], (self.k_elong, self.k_elong))
+            temp.append(rec)
+        temp.append(Reaction([i + 1], ['RNA'] , (self.k_elong, self.k_elong))
+        self.reactions + temp
+            
+    
+    def read_from_file(self, directory):
+        '''Read a file and create a list of reactions object
+        '''
+        self.reactions = reactions_list
