@@ -1,22 +1,48 @@
 import numpy as np
 
-def NRM_singlegene_model(S,nucleotide_count,C,n):
+def NRM_singlegene_model(reactions,step):
     
     """ S - Species involved in non-elongation/transcription reactions.
         V - Elongation species. Initalized as a vector of zeros
         C - Constant list. Must be equal in length to the total number of reactions and 
             must match the indices of the concatenated list X
         n - number of reactions/iterations """
-    elong_step = np.zeros(nucleotide_count)
     
     time = np.ndarray(n)
     
-    species_list = S + list(elong_step) 
+
+
+
+    """ Create Dictionary of Products, Reactants, and Species """
+
+    reactant_dict = {}
+    product_dict = {}
+
+    for i in range(len(reactions)):
+        R = []
+        X = reactions[i].reactants
+        for r in X:
+            R.append(r.count)
+        reactant_dict.update({i:R})
+        
+
+        P = []
+        Y = reactions[i].products
+        for q in Y:
+            P.append(q.count)
+        product_dict.update({i:P})
+
+    species_dict = {}
+
+    for i in reactant_dict.keys():
+        species_array = reactant_dict[i] + product_dict[i]
+        species_dict.update({i:species_array})
     
-    reactant_dict = {0:[0,1],1:[2],2:[2],3:[3],4:[len(species_list) - 1],5:[4],6:[4,5],7:[6],8:[7],9:[8]} 
-    species_dict = {0:[0,1,2],1:[2,3],2:[0,1,2],3:[0,3,9],4:[1,4,(len(species_list) - 1)],5:[4],6:[5,6,4],7:[6,7],8:[4,5,7,8],9:[8]}
     
     """ Create Elongation Species Reaction """
+
+    
+
     G = range(len(species_list))
     for i in range(len(G)):
         if i > 9:
@@ -37,32 +63,14 @@ def NRM_singlegene_model(S,nucleotide_count,C,n):
             if len(M) != 0:
                 temp.append(r)
                 dep_graph.update({i:temp})
-                
-    """ Create Dictionary of Products and Reactants """
-                
-    
-    product_dict = {}
-    
-    for i in species_dict.keys():
-        temp = [val for val in species_dict[i] if val not in reactant_dict[i]]
-        product_dict.update({i:temp})
-        
-    product_dict.update({5:[4],9:[8]})# necassry t 
-        
-        
+
     """ Define propensity functions """
-    
-    a0 = C[0]*S[0]*S[1]
-    a1 = C[1]*S[2]
-    a2 = C[2]*S[2]
-    a3 = C[3]*S[3]
-    a4 = C[4]*elong_step[len(elong_step) - 1]
-    a5 = C[5]*S[4]
-    a6 = C[6]*S[4]*S[5]
-    a7 = C[7]*S[6]
-    a8 = C[8]*S[7]
-    a9 = C[9]*S[8]
-    non_elong_prop = [a0,a1,a2,a3,a4,a5,a6,a7,a8,a9]
+                
+    non_elong_prop = []
+    for i in reactions:
+        non_elong_prop.append(i.propensity)
+
+
     
     elong_prop_func = []
     for i,p in enumerate(elong_step): 
@@ -96,6 +104,10 @@ def NRM_singlegene_model(S,nucleotide_count,C,n):
             time_store[u] = 0
         else:
             tau[u] = ((-1)*(math.log(np.random.random())))/float(p)
+
+
+
+
             
     """ Initiate the SSA - n refers to the number of reactios """
     for i in range(n):

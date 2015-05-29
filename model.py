@@ -16,12 +16,10 @@ import pickle
 
 class Species(object):
     
-    def __init__(self, name, reaction, count=False):
+    def __init__(self, name, count=False):
         
         assert type(name) == str
-        assert type(reaction) == list
         self.name = name
-        self.reaction = reaction
         if count:
             self.count = count
         else:
@@ -29,28 +27,38 @@ class Species(object):
 
 class RNApol(Species):
     
-    def __init__(self, name, reaction, rate_of_decay, count=False):
-        Species.__init__(self, name, reaction, count=False)
+    def __init__(self, name, rate_of_decay, count=False):
+        Species.__init__(self, name, count=False)
         self.r_decay = rate_of_decay
         
 class DNApol(Species):
     
-    def __init__(self, name, reaction, rate_of_decay, count=False):
-        Species.__init__(self, name, reaction, count=False)
+    def __init__(self, name, rate_of_decay, count=False):
+        Species.__init__(self, name, count=False)
         self.r_decay = rate_of_decay
 
 class Protein(Species):
     
-    def __init__(self, name, reaction, rate_of_decay, count=False):
-        Species.__init__(self, name, reaction, count=False)
+    def __init__(self, name, rate_of_decay, count=False):
+        Species.__init__(self, name, count=False)
         self.r_decay = rate_of_decay
 
 class Reaction(object):
     
     def __init__(self, reactants, products, ks):
+        assert type(reactants[0]) == Species
+        assert type(products[0]) == Species
         self.reactants = reactants
         self.products = products
         self.ks = ks
+
+    @property    
+    def propensity(self):
+        a = 1
+        for i in self.reactants:
+            a *= i.count
+        a *= self.ks[0]
+        return a
 
 class NextReactionMethod(object):
     
@@ -59,10 +67,6 @@ class NextReactionMethod(object):
         self.k_elong = k_elong
         self.read_from_file(directory)
         self.create_elong_reactions()
-        
-    
-    #@property    
-    #def propensity(self):
         
         
     def generate_dep_graph(self):
