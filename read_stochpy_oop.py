@@ -35,7 +35,7 @@ class read(object):
             species.append(y)
         filter_obj2 = filter(None,species)
         
-        return  s_no_duplicate, filter_obj2
+        return  filter_obj2
         
     def get_species_values(self):
         """Create a dictionary of the Species initial values from the input file                             

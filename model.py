@@ -61,8 +61,8 @@ class NextReactionMethod(object):
         self.create_elong_reactions()
         
     
-    @property    
-    def propensity(self):
+    #@property    
+    #def propensity(self):
         
         
     def generate_dep_graph(self):
@@ -80,8 +80,8 @@ class NextReactionMethod(object):
         for i in range(self.num_elong - 1):
             rec = Reaction([i], [i + 1], (self.k_elong, self.k_elong))
             temp.append(rec)
-        temp.append(Reaction([i + 1], ['RNA'] , (self.k_elong, self.k_elong))
-        self.reactions + temp
+        temp.append(Reaction([i + 1], ['RNA'] , (self.k_elong, self.k_elong)))
+        self.reactions = self.reactions + temp
             
     
     def read_from_file(self, directory):

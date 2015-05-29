@@ -1,3 +1,5 @@
+import numpy as np
+
 def NRM_singlegene_model(S,nucleotide_count,C,n):
     
     """ S - Species involved in non-elongation/transcription reactions.
