@@ -67,6 +67,9 @@ class NextReactionMethod(object):
         self.k_elong = k_elong
         self.read_from_file(directory)
         self.create_elong_reactions()
+
+    def generate_species_dic(self):
+        for 
         
         
     def generate_dep_graph(self):
@@ -92,3 +95,4 @@ class NextReactionMethod(object):
         '''Read a file and create a list of reactions object
         '''
         self.reactions = reactions_list
+        self.species = species
