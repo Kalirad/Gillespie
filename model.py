@@ -145,8 +145,6 @@ class Reaction(object):
     def time(self,time):
         self.time = time
 
-    
-
     @property    
     def propensity(self):
         a = 1
@@ -174,10 +172,6 @@ class NextReactionMethod(object):
         self.k_elong = k_elong
         self.read_from_file(directory)
         self.create_elong_reactions()
-
-    def generate_species_dic(self):
-        for 
-        
         
     def generate_dep_graph(self):
         self.dep_graph = {}
@@ -185,7 +179,7 @@ class NextReactionMethod(object):
             temp = i.reactants + i.products
             dep_rec = []
             for j in rec_list:
-                if set(temp) and set(j.reactants):
+                if set(temp) in set(j.reactants):
                     dep_rec.append(j)
             self.dep_graph[i] = dep_rec
         
@@ -211,10 +205,6 @@ def NRM_singlegene_model(self, step):
     total_react_prop = []
     for i in reactions:
         total_react_prop.append(i.propensity)
-
-
-    
-   
     
     """ Propensity and time storage vectors """
     
@@ -237,10 +227,6 @@ def NRM_singlegene_model(self, step):
             tau_store[u] = 0
             propensity_store[u] = 0
             time_store[u] = 0
-        
-
-
-
             
     """ Initiate the SSA - n refers to the number of reactios """
     for i in range(n):
