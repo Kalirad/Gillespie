@@ -15,9 +15,22 @@ import pickle
 
 
 class Species(object):
-    
+
     def __init__(self, name, count=False):
-        
+        """Initiate the species class.
+
+        Parameters
+        ----------
+        name : str
+               The name of the species, i.e. DNA, mRNA, etc.
+
+        count : int, optional
+                The quantity of the species, defualts to zero.
+
+        Returns
+        -------
+        Species object
+        """
         assert type(name) == str
         self.name = name
         if count:
@@ -28,18 +41,87 @@ class Species(object):
 class RNApol(Species):
     
     def __init__(self, name, rate_of_decay, count=False):
+        """Initiate the RNApol class.
+
+        Parameters
+        ----------
+        name : str
+               The name of the species, i.e. DNA, mRNA, etc.
+
+        rate_of_decay : float
+                        The rate of decay for the species of interest.
+
+        count : int, optional
+                The quantity of the species, defualts to zero.
+
+        Returns
+        -------
+        RNApol object
+
+        See Also
+        --------
+        Species : This class inherits from the species class
+
+        """
+        assert type(rate_of_decay) == float
         Species.__init__(self, name, count=False)
         self.r_decay = rate_of_decay
         
 class DNApol(Species):
     
     def __init__(self, name, rate_of_decay, count=False):
+        """Initiate the RNApol class.
+
+        Parameters
+        ----------
+        name : str
+               The name of the species, i.e. DNA, mRNA, etc.
+
+        rate_of_decay : float
+                        The rate of decay for the species of interest.
+
+        count : int, optional
+                The quantity of the species, defualts to zero.
+
+        Returns
+        -------
+        DNApol object
+
+        See Also
+        --------
+        Species : This class inherits from the species class
+
+        """
+        assert type(rate_of_decay) == float
         Species.__init__(self, name, count=False)
         self.r_decay = rate_of_decay
 
 class Protein(Species):
     
     def __init__(self, name, rate_of_decay, count=False):
+        """Initiate the RNApol class.
+
+        Parameters
+        ----------
+        name : str
+               The name of the species, i.e. DNA, mRNA, etc.
+
+        rate_of_decay : float
+                        The rate of decay for the species of interest.
+
+        count : int, optional
+                The quantity of the species, defualts to zero.
+
+        Returns
+        -------
+        Protein object
+
+        See Also
+        --------
+        Species : This class inherits from the species class
+
+        """
+        assert type(rate_of_decay) == float
         Species.__init__(self, name, count=False)
         self.r_decay = rate_of_decay
 
