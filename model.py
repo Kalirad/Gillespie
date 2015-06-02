@@ -130,6 +130,7 @@ class Reaction(object):
     def __init__(self, reactants, products, ks):
         assert type(reactants[0]) == Species
         assert type(products[0]) == Species
+        assert type(ks) == tuple
         self.reactants = reactants
         self.products = products
         self.ks = ks
@@ -206,9 +207,7 @@ class NextReactionMethod(object):
 
 
 def NRM_singlegene_model(self, step):
-    
-
-                
+     
     total_react_prop = []
     for i in reactions:
         total_react_prop.append(i.propensity)
