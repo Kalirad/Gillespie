@@ -2,9 +2,9 @@
 T7 model
 ========
 
-A model of T7 life cycle in E.coli host.  The model uses the Stochastic Simulation Algorithm from Gillespie (1977) [1].
+A model of T7 life cycle in E.coli host.  The model uses the Stochastic Simulation Algorithm from Gibson & Bruck (2000) [1].
 
-[1] Gillespie D.T (1977), "Exact stochastic simulation of coupled chemical reactions", J.Phys. Chem. 81:2340-2361
+[1] Gibson M.A and Bruck J. (2000), "Exact stochastic simulation of Chemical Systems with Many Species and Many Channels", J.Phys. Chem. 104:1876-1889
 
 """
 import pandas as pd
