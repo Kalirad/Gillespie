@@ -139,30 +139,33 @@ class Reaction(object):
     
     @property
     def time(self):
-        return self.time
+        return self.t
 
     @time.setter
     def time(self,time):
-        self.time = time
-
-    @property    
-    def propensity(self):
+        self.t = time
+   
+    def get_propensity(self):
         a = 1
         for i in self.reactants:
             a *= i.count
         a *= self.ks[0]
         if a:
             self.prop_old = a
-        return a
+        self.prop = a
 
-    @property
-    def tau(self):
+    def get_tau(self,time):
         if self.propensity == 0:
             self.tau = inf
         else:
              self.tau = ((-1)*(math.log(np.random.random())))/float(self.propensity)
              self.tau_old = tau
-        return self.tau
+        self.tau = tau
+
+    def get_det_tau(self,time):
+
+        self.tau = (self.prop_old/self.propensity)
+
     
 
 class NextReactionMethod(object):
@@ -172,6 +175,7 @@ class NextReactionMethod(object):
         self.k_elong = k_elong
         self.read_from_file(directory)
         self.create_elong_reactions()
+
         
     def generate_dep_graph(self):
         self.dep_graph = {}
@@ -199,11 +203,60 @@ class NextReactionMethod(object):
         self.species = species
 
 
-    def NRM_singlegene_model(self, step):
+    def NRM_execution(self, step):
+
+        tau_list = []
+        for j in self.reactions:
+            tau_list.append(j.tau)
+
+        for i in range(step):
+
+            reaction_index = np.argmin(tau_list)
+
+            dependency_list = self.dep_graph[rec_list[reaction_index]]
+
+            for j in dependency_list:
+                for k in j.reactants:
+                    k.count -= 1
+                for k in j.products:
+                    k.count += 1
+                if j == self.reactions[reaction_index]:
+                    j.get_propensity()
+                    if j.prop == 0:
+                        j.t = tau_list[reaction_index]
+                         
+
+
+                    
+
+
+                    tau_list[self.reactions.index(j)] = j.tau()
+
+                s
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
          
-        total_react_prop = []
-        for i in reactions:
-            total_react_prop.append(i.propensity)
+    
         
         """ Propensity and time storage vectors """
         
