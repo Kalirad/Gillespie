@@ -38,6 +38,15 @@ class Species(object):
         else:
             self.count = 0
 
+    @property
+    def count(self):
+        return self.c
+
+    @count.setter
+    def count(self, count):
+        self.c = count
+        
+
 class RNApol(Species):
     
     def __init__(self, name, rate_of_decay, count=False):
@@ -134,8 +143,10 @@ class Reaction(object):
         self.reactants = reactants
         self.products = products
         self.ks = ks
-        self.tau_old = 0
+        self.tau = 0 #time for reaction to occur
+        self.tau_old = 0 #time that is recorded if self.tau not equals to 0 
         self.prop_old = 0
+        self.get_propensity()
     
     @property
     def time(self):
@@ -143,7 +154,7 @@ class Reaction(object):
 
     @time.setter
     def time(self,time):
-        self.t = time
+        self.t = time #time is the tau for the reaction that has just been executed
    
     def get_propensity(self):
         a = 1
@@ -154,27 +165,47 @@ class Reaction(object):
             self.prop_old = a
         self.prop = a
 
-    def get_tau(self,time):
-        if self.propensity == 0:
-            self.tau = inf
+    def get_tau(self, time): #this method is to recalculate the tau for the reaction that has just been executed
+        if self.prop == 0:
+            self.tau_old = self.tau
+            self.t = time
+            self.tau = np.inf
         else:
-             self.tau = ((-1)*(math.log(np.random.random())))/float(self.propensity)
-             self.tau_old = tau
-        self.tau = tau
+             self.tau = ((-1)*(np.log(np.random.random())))/float(self.prop)
+             self.tau_old = self.tau
+        #self.tau = tau
 
-    def get_det_tau(self,time):
-
-        self.tau = (self.prop_old/self.propensity)
+    def get_det_tau(self, time): #this method is to recalculate the tau for reactions that are dependent on the just executed reaction
+        if self.prop == 0:
+            if self.tau != np.inf: 
+                self.tau_old = self.tau
+                self.t = time
+                self.tau = np.inf
+        else:
+            if self.tau == np.inf:
+                if self.prop_old == 0:
+                    self.tau = ((-1)*(np.log(np.random.random())))/float(self.prop)  
+                else:
+                    self.tau = (self.prop_old/float(self.prop))*(self.tau_old - self.t) + time
+            else:
+                self.tau = ((self.prop_old/float(self.prop))*((self.tau) - time)) + time
 
     
 
 class NextReactionMethod(object):
     
-    def __init__(self, num_elong, k_elong, directory):
-        self.num_elong = num_elong
-        self.k_elong = k_elong
-        self.read_from_file(directory)
-        self.create_elong_reactions()
+    def __init__(self, directory=False, num_elong=False, k_elong=False):
+        if num_elong:
+            self.num_elong = num_elong
+            self.k_elong = k_elong
+            self.create_elong_reactions()
+        if directory:
+            self.read_from_file(directory)
+
+    def create_rec_list(self, rec_list):
+        assert type(rec_list[0]) == Reaction
+        self.reactions = rec_list
+        
 
         
     def generate_dep_graph(self):
@@ -182,10 +213,12 @@ class NextReactionMethod(object):
         for i in self.reactions:
             temp = i.reactants + i.products
             dep_rec = []
-            for j in rec_list:
-                if set(temp) in set(j.reactants):
+            for j in self.reactions:
+                V = [val for val in temp if val in j.reactants]
+                if len(V) != 0:
                     dep_rec.append(j)
             self.dep_graph[i] = dep_rec
+        #return self.dep_graph
         
     def create_elong_reactions(self):
         temp = []
@@ -200,39 +233,46 @@ class NextReactionMethod(object):
         '''Read a file and create a list of reactions object
         '''
         self.reactions = reactions_list
-        self.species = species
+        #self.species = species
 
 
     def NRM_execution(self, step):
+        system_time = 0
+        history= []
 
         tau_list = []
         for j in self.reactions:
+            j.get_tau(system_time) 
             tau_list.append(j.tau)
 
-        for i in range(step):
+        self.generate_dep_graph()
 
+        for i in range(step):
             reaction_index = np.argmin(tau_list)
 
-            dependency_list = self.dep_graph[rec_list[reaction_index]]
+            dependency_list = self.dep_graph[self.reactions[reaction_index]]
 
+            system_time = tau_list[reaction_index] #this will give us the time variable input necessary for get_det_tau calculation
             for j in dependency_list:
                 for k in j.reactants:
-                    k.count -= 1
+                    new = k.count - 1
+                    k.count = new
+                    print k.count, k.name
                 for k in j.products:
-                    k.count += 1
+                    new = k.count + 1
+                    k.count = new
+                j.get_propensity()
                 if j == self.reactions[reaction_index]:
-                    j.get_propensity()
-                    if j.prop == 0:
-                        j.t = tau_list[reaction_index]
-                         
+                    j.get_tau(system_time)
+                    tau_list[reaction_index] = j.tau
+                else:
+                    j.get_det_tau(system_time) 
+                    tau_list[self.reactions.index(j)] = j.tau
 
 
-                    
 
 
-                    tau_list[self.reactions.index(j)] = j.tau()
 
-                s
 
 
 
@@ -257,97 +297,3 @@ class NextReactionMethod(object):
 
          
     
-        
-        """ Propensity and time storage vectors """
-        
-        
-        last_propensity_value = []
-        for i in range(len(total_react_prop)): #gaskjsdkasud
-            last_propensity_value.append(total_react_prop[i])
-        
-        new_propensity_value = np.ndarray(len(total_react_prop))
-        
-        tau_store = np.ndarray(len(total_react_prop))
-        propensity_store = np.ndarray(len(total_react_prop))
-        time_store = np.ndarray(len(total_react_prop))
-        
-        """ Generate putative times for each reaction to occur """
-        
-        for u,p in enumerate(total_react_prop): #Calculating taus associated with the non-elongation propensities
-            if p == 0:
-                tau[u] = inf
-                tau_store[u] = 0
-                propensity_store[u] = 0
-                time_store[u] = 0
-                
-        """ Initiate the SSA - n refers to the number of reactios """
-        for i in range(n):
-            B = tau.argmin()
-            Y = reactant_dict[B]
-            Z = product_dict[B]
-            
-            """ the following conditional statement is important due to the presence of 
-            mRNA and protein decay reactions that have Y and Z equal to each other """
-            if Y != Z:
-                for r in Y:
-                    species_list[r] -= 1
-                for rr in Z:
-                    species_list[rr] += 1
-            else:
-                for r in Y:
-                    species_list[r] -= 1
-                
-            q = tau[B]
-            time[i] = q
-            
-            dependency = self.generate_dep_graph()
-            
-            """ to recalculate the propensities, all one needs to do is iterate through
-                the reactant list stored in the reactant dictionary - Reactant_dict - and multiply all items in the 
-                list with the reaction constant- C[9] """
-            
-            for g in dependency:
-                if g == B:
-                    """ the following for loop goes through the reactant list and multiplies all the reactants
-                    using variable M initially set tp 1. The propensity function can then be calculated
-                    generically - without specifying the exact reactant species involved """
-                    M = 1
-                    for k in range(len(Y)):
-                        M *= species_list[Y[k]]
-                    total_react_prop[g] = C[g]*M
-                    new_propensity_value[g] = total_react_prop[g] 
-                    if new_propensity_value[g] == 0:
-                        tau_store[g] = tau[g]
-                        propensity_store[g] = last_propensity_value[g]
-                        time_store[g] = time[i]
-                        tau[g] = inf
-                    else:
-                        tau[g] = (((-1)*(math.log(np.random.random())))/float(new_propensity_value[g])) + time[i]
-                    last_propensity_value[g] = new_propensity_value[g]
-                        
-                else:
-                    YY = reactant_dict[g]
-                    MM = 1
-                    for k in range(len(YY)):
-                        MM *= species_list[YY[k]]
-                    total_react_prop[g] = C[g]*MM
-                    new_propensity_value[g] = total_react_prop[g]
-                    if new_propensity_value[g] == 0: 
-                        if tau[g] != inf:
-                            tau_store[g] = tau[g]
-                            propensity_store[g] = last_propensity_value[g]
-                            time_store[g] = time[i]
-                            tau[g] = inf
-                    else:
-                        if tau[g] == inf:
-                            if propensity_store[g] == 0:
-                                tau[g] = (((-1)*(math.log(np.random.random())))/float(new_propensity_value[g])) + time[i]
-                            elif tau_store[g] == time_store[g]:
-                                tau[g] = (((-1)*(math.log(np.random.random())))/float(new_propensity_value[g])) + time[i]
-                            else:
-                                tau[g] = (((propensity_store[g]) / float(new_propensity_value[g]))*(tau_store[g] - time_store[g])) + time[i]  
-                        else:
-                            tau[g] = ((last_propensity_value[g]/float(new_propensity_value[g]))*(tau[g] - time[i])) + time[i]
-                    last_propensity_value[g] = new_propensity_value[g]
-                    
-        return species_list
