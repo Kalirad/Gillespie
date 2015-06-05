@@ -9,8 +9,8 @@ A model of T7 life cycle in E.coli host.  The model uses the Stochastic Simulati
 """
 import pandas as pd
 import numpy as np
+import copy as copy
 from itertools import *
-from copy import *
 import pickle
 
 
@@ -135,7 +135,7 @@ class Protein(Species):
         self.r_decay = rate_of_decay
 
 class Reaction(object):
-    
+
     def __init__(self, reactants, products, ks):
         assert type(reactants[0]) == Species
         assert type(products[0]) == Species
@@ -147,6 +147,22 @@ class Reaction(object):
         self.tau_old = 0 #time that is recorded if self.tau not equals to 0 
         self.prop_old = 0
         self.get_propensity()
+    
+
+    """
+    def __init__(self, reactants, products, ks, tag):
+        assert type(reactants[0]) == Species
+        assert type(products[0]) == Species
+        assert type(ks) == tuple
+        assert type(tag) == int
+        self.reactants = reactants
+        self.products = products
+        self.ks = ks
+        self.tag = tag
+        self.tau = 0 #time for reaction to occur
+        self.tau_old = 0 #time that is recorded if self.tau not equals to 0 
+        self.prop_old = 0
+        self.get_propensity() """
     
     @property
     def time(self):
@@ -171,7 +187,7 @@ class Reaction(object):
             self.t = time
             self.tau = np.inf
         else:
-             self.tau = ((-1)*(np.log(np.random.random())))/float(self.prop)
+             self.tau = ((-1)*(np.log(np.random.random())))/float(self.prop) + time
              self.tau_old = self.tau
         #self.tau = tau
 
@@ -184,11 +200,16 @@ class Reaction(object):
         else:
             if self.tau == np.inf:
                 if self.prop_old == 0:
-                    self.tau = ((-1)*(np.log(np.random.random())))/float(self.prop)  
+                    self.tau = ((-1)*(np.log(np.random.random())))/float(self.prop) + time
+                
+                elif self.tau_old == self.t:
+                    self.tau = ((-1)*(np.log(np.random.random())))/float(self.prop) + time
+                
                 else:
                     self.tau = (self.prop_old/float(self.prop))*(self.tau_old - self.t) + time
             else:
                 self.tau = ((self.prop_old/float(self.prop))*((self.tau) - time)) + time
+            self.tau_old = self.tau
 
     
 
@@ -214,8 +235,8 @@ class NextReactionMethod(object):
             temp = i.reactants + i.products
             dep_rec = []
             for j in self.reactions:
-                V = [val for val in temp if val in j.reactants]
-                if len(V) != 0:
+                set_value = [val for val in temp if val in j.reactants]
+                if len(set_value) != 0:
                     dep_rec.append(j)
             self.dep_graph[i] = dep_rec
         #return self.dep_graph
@@ -247,27 +268,57 @@ class NextReactionMethod(object):
 
         self.generate_dep_graph()
 
+        track_reactant_species = []
+        track_dimer_species = []
+        track_time = []
+
         for i in range(step):
             reaction_index = np.argmin(tau_list)
 
             dependency_list = self.dep_graph[self.reactions[reaction_index]]
 
             system_time = tau_list[reaction_index] #this will give us the time variable input necessary for get_det_tau calculation
+            print system_time
             for j in dependency_list:
-                for k in j.reactants:
-                    new = k.count - 1
-                    k.count = new
-                    print k.count, k.name
-                for k in j.products:
-                    new = k.count + 1
-                    k.count = new
-                j.get_propensity()
                 if j == self.reactions[reaction_index]:
+                    for k in j.reactants:
+                        new = k.count - 1
+                        k.count = new
+                        print k.count, k.name
+                
+                    for k in j.products:
+                        new = k.count + 1
+                        k.count = new
+                        print k.count, k.name
+
+                    j.get_propensity()
+                    
                     j.get_tau(system_time)
+                    
                     tau_list[reaction_index] = j.tau
+                
                 else:
-                    j.get_det_tau(system_time) 
+                    j.get_propensity()
+
+                    j.get_det_tau(system_time)
+
                     tau_list[self.reactions.index(j)] = j.tau
+
+            track_reactant_species.append(self.reactions[0].reactants[0].count)
+
+            track_dimer_species.append(self.reactions[0].products[0].count)
+
+            track_time.append(system_time)
+
+        return track_reactant_species, track_dimer_species, track_time
+
+
+
+
+
+
+
+
 
 
 
