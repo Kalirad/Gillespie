@@ -149,20 +149,6 @@ class Reaction(object):
         self.get_propensity()
     
 
-    """
-    def __init__(self, reactants, products, ks, tag):
-        assert type(reactants[0]) == Species
-        assert type(products[0]) == Species
-        assert type(ks) == tuple
-        assert type(tag) == int
-        self.reactants = reactants
-        self.products = products
-        self.ks = ks
-        self.tag = tag
-        self.tau = 0 #time for reaction to occur
-        self.tau_old = 0 #time that is recorded if self.tau not equals to 0 
-        self.prop_old = 0
-        self.get_propensity() """
     
     @property
     def time(self):
@@ -173,13 +159,40 @@ class Reaction(object):
         self.t = time #time is the tau for the reaction that has just been executed
    
     def get_propensity(self):
-        a = 1
-        for i in self.reactants:
-            a *= i.count
-        a *= self.ks[0]
-        if a:
-            self.prop_old = a
-        self.prop = a
+        if len(self.reactants) > 1:
+            for i in self.reactants:
+                storage = []
+                if i != self.reactants[0]:
+                    storage.append(i)
+
+            if len(storage) == 0:
+                val = self.reactants[0].count
+                for j in range(len(self.reactants)):
+                    if j > 0:
+                        val *= (self.reactants[j].count - j)
+                val *= self.ks[0]
+
+                factorial = [k for k in range(len(self.reactants)) if k]
+                factorial.append(len(self.reactants))
+                a = val/float(np.product(factorial))
+                if a:
+                    self.prop_old = a
+                self.prop = a
+            else:
+                a = 1
+                for m in self.reactants:
+                    a *= m.count
+
+                a *= self.ks[0]
+                if a:
+                    self.prop_old = a
+                self.prop = a
+
+        else:
+            a = self.reactants[0].count * self.ks[0]
+            if a:
+                self.prop_old = a
+            self.prop = a
 
     def get_tau(self, time): #this method is to recalculate the tau for the reaction that has just been executed
         if self.prop == 0:
@@ -226,9 +239,85 @@ class NextReactionMethod(object):
     def create_rec_list(self, rec_list):
         assert type(rec_list[0]) == Reaction
         self.reactions = rec_list
-        
+
 
         
+    def create_species_list(self):
+       
+        #Creacting a list of species
+        
+        arch_list = []
+
+        for i in self.reactions:
+            temp = i.reactants + i.products
+            arch_list.append(temp)
+
+        reference = arch_list[0]
+
+        for i in arch_list:
+            if arch_list.index(i) > 0:
+                catch = i + reference
+                reference = catch
+
+        species_set = set(catch)
+
+        self.species = species_set
+        
+
+
+        """
+        reference_list = []
+
+        if len(self.reactions) == 1:
+            for i in self.reactions:
+                intersect = [val for val in i.products if val not in i.reactants]
+                if len(intersect) != 0:
+                    temp = i.reactants + intersect
+                else:
+                    temp = i.reactants
+                reference_list = temp
+            species_list = reference_list
+
+        else:
+            for i in self.reactions:
+                intersect = [val for val in i.products if val not in i.reactants]
+                if len(intersect) != 0:
+                    temp = i.reactants + intersect
+                else:
+                    temp = i.reactants
+                reference_list.append(temp)
+
+
+            reference = reference_list[0]
+            for i in reference_list:
+                if reference_list.index(i) > 0:
+                    catch = [val for val in i if val not in reference]
+                    if catch != 0:
+                        species_list = reference + catch
+                        reference = species_list  
+
+        self.species = species_list """
+
+    def create_elongation_species(self):
+        for i in self.species:
+            if i.name.split()[0] == 'DNA':
+                nucleotide_length = int(i.name.split()[2])
+
+        temp = []
+        for i in range(nucleotide_length):
+            temp.append(Species(self,'NL-i',count=0))
+
+
+
+    def create_elong_reactions(self):
+        temp = []
+        for i in range(self.num_elong - 1):
+            rec = Reaction([i], [i + 1], (self.k_elong, self.k_elong))
+            temp.append(rec)
+        temp.append(Reaction([i + 1], ['RNA'] , (self.k_elong, self.k_elong)))
+        self.reactions = self.reactions + temp
+        
+
     def generate_dep_graph(self):
         self.dep_graph = {}
         for i in self.reactions:
@@ -241,15 +330,6 @@ class NextReactionMethod(object):
             self.dep_graph[i] = dep_rec
         #return self.dep_graph
         
-    def create_elong_reactions(self):
-        temp = []
-        for i in range(self.num_elong - 1):
-            rec = Reaction([i], [i + 1], (self.k_elong, self.k_elong))
-            temp.append(rec)
-        temp.append(Reaction([i + 1], ['RNA'] , (self.k_elong, self.k_elong)))
-        self.reactions = self.reactions + temp
-            
-    
     def read_from_file(self, directory):
         '''Read a file and create a list of reactions object
         '''
@@ -258,19 +338,26 @@ class NextReactionMethod(object):
 
 
     def NRM_execution(self, step):
+             
         system_time = 0
-        history= []
+
+        #First Step, create a species dictionary from the species list
+
+        #keys will be species, values will be a list of counts at each iteration of the stochastic algorithm
+
+        species_dict = {}
+        for i in self.species:
+            species_dict.update({i.name:[i.count]})
+
+        species_dict.update({'time':[system_time]})
 
         tau_list = []
-        for j in self.reactions:
-            j.get_tau(system_time) 
-            tau_list.append(j.tau)
+        for m in self.reactions:
+            m.get_tau(system_time) 
+            tau_list.append(m.tau)
 
         self.generate_dep_graph()
 
-        track_reactant_species = []
-        track_dimer_species = []
-        track_time = []
 
         for i in range(step):
             reaction_index = np.argmin(tau_list)
@@ -278,19 +365,19 @@ class NextReactionMethod(object):
             dependency_list = self.dep_graph[self.reactions[reaction_index]]
 
             system_time = tau_list[reaction_index] #this will give us the time variable input necessary for get_det_tau calculation
-            print system_time
+            
+
             for j in dependency_list:
+                
                 if j == self.reactions[reaction_index]:
                     for k in j.reactants:
                         new = k.count - 1
                         k.count = new
-                        print k.count, k.name
-                
+               
                     for k in j.products:
                         new = k.count + 1
                         k.count = new
-                        print k.count, k.name
-
+                       
                     j.get_propensity()
                     
                     j.get_tau(system_time)
@@ -304,32 +391,30 @@ class NextReactionMethod(object):
 
                     tau_list[self.reactions.index(j)] = j.tau
 
-            track_reactant_species.append(self.reactions[0].reactants[0].count)
 
-            track_dimer_species.append(self.reactions[0].products[0].count)
+            for j in self.species:
+                species_dict[j.name].append(j.count)
 
-            track_time.append(system_time)
-
-        return track_reactant_species, track_dimer_species, track_time
-
-
+            species_dict['time'].append(system_time)
+                
+        return species_dict
 
 
+    def multiple_simulation(self,trajectories,step):
 
+        simulation_dict = {}
 
+        self.create_species_list()
 
+        for i in range(trajectories):
 
+            shadow_reaction = copy.deepcopy(self)
 
+            Y = shadow_reaction.NRM_execution(step)
 
+            simulation_dict.update({i:Y})
 
-
-
-
-
-
-
-
-
+        self.stats = simulation_dict
 
 
 
@@ -339,12 +424,35 @@ class NextReactionMethod(object):
 
 
 
+"""def Immigration_Death(self,stop):
+    def Immigration_Death_Model(self,step):
+        
+        system_time = np.ndarray(step)
+
+        track_species =np.ndarray(step)
 
 
+        propensity_list []
+        
+        for i in self.reactions:
+            propensity_list.append(i.get_propensity())
 
 
+        for i in range(step):
+            tau = (((-1)*(math.log(np.random.random())))/float(np.sum(propensity_list)))
 
+            system_time[i] = tau
 
+            weighted_sum = np.random.random() * np.sum(propensity_list)
 
-         
-    
+            reaction_index = [j for j in range(len(propensity_list)) if np.sum(propensity_list[0:(j + 1)]) > weighted_sum][0]
+
+            for j in propensity_list:
+
+                if j == propensity_list[reaction_index]:
+
+                    for k in j.reactants:
+                        k.count -= 1
+
+                    for k in j.products:
+                        k.count +"""    
