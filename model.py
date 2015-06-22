@@ -45,6 +45,40 @@ class Species(object):
     @count.setter
     def count(self, count):
         self.c = count
+
+class DNA(Species):
+    def __init__(self, name, tag_dna, dna_length=False, count=False):
+        """ All genes will be associated with an id tag comprising of an integer 
+        to facillitate generation of reactions associated with transcription elongation """
+
+
+        assert type(tag_dna) == int
+        Species.__init__(self, name, count=False)
+        self.tag_dna = tag_dna
+        self.dna_length = dna_length
+        self.count = count
+        """
+        if count:
+            self.count = count
+        else:
+            self.count = 0
+            """
+
+
+
+
+class RNA(Species):
+    def __init__(self, name, tag_rna, count=False):
+        """ All mRNA transcript will be associated with an id tag of integer 
+        corresponding to expressed gene """
+
+        assert type(tag_rna) == int
+        Species.__init__(self, name, count=False)
+        self.tag_rna = tag_rna
+        if count:
+            self.count = count
+        else:
+            self.count = 0
         
 
 class RNApol(Species):
@@ -137,8 +171,8 @@ class Protein(Species):
 class Reaction(object):
 
     def __init__(self, reactants, products, ks):
-        assert type(reactants[0]) == Species
-        assert type(products[0]) == Species
+        #assert type(reactants[0]) == Species
+        #assert type(products[0]) == Species
         assert type(ks) == tuple
         self.reactants = reactants
         self.products = products
@@ -229,12 +263,15 @@ class Reaction(object):
 class NextReactionMethod(object):
     
     def __init__(self, directory=False, num_elong=False, k_elong=False):
+        self.k_elong = k_elong
+        """
         if num_elong:
             self.num_elong = num_elong
             self.k_elong = k_elong
             self.create_elong_reactions()
         if directory:
             self.read_from_file(directory)
+            """
 
     def create_rec_list(self, rec_list):
         assert type(rec_list[0]) == Reaction
@@ -262,6 +299,8 @@ class NextReactionMethod(object):
         species_set = set(catch)
 
         self.species = species_set
+
+        return self.species
         
 
 
@@ -299,25 +338,52 @@ class NextReactionMethod(object):
         self.species = species_list """
 
     def create_elongation_species(self):
-        for i in self.species:
-            if i.name.split()[0] == 'DNA':
-                nucleotide_length = int(i.name.split()[2])
-
-        temp = []
-        for i in range(nucleotide_length):
-            temp.append(Species(self,'NL-i',count=0))
-
-
-
-    def create_elong_reactions(self):
-        temp = []
-        for i in range(self.num_elong - 1):
-            rec = Reaction([i], [i + 1], (self.k_elong, self.k_elong))
-            temp.append(rec)
-        temp.append(Reaction([i + 1], ['RNA'] , (self.k_elong, self.k_elong)))
-        self.reactions = self.reactions + temp
+        elong_species_dict = {}
         
+        for i,p in enumerate(self.species):
+            find = p.name.split('-')
+            if (find[0] == 'GENE') and (type(int(find[1])) == int):
+                elong_list = []
+                for j in range(p.dna_length):
+                    name = find[0] + find[1] + '-' + str(j)
+                    elong_list.append(Species(name,count=0))
+                elong_species_dict.update({p:elong_list})
 
+        self.elong_species = elong_species_dict
+
+    def create_elongation_reactions(self):
+
+        temp = []
+        valor = []
+        for i in self.elong_species.keys():
+            for j in self.species:
+                if j.name.split('-')[0] == 'ElongationComplex':
+                    if int(j.name.split('-')[3]) == i.tag_dna:
+                        temp.append(j)
+                        valor.append(self.elong_species[i][0])
+                        
+                elif j.name.split('-')[0] == 'GENE':
+                    if int(j.name.split('-')[1]) == i.tag_dna:
+                        valor.append(j)
+            self.reactions.append(Reaction(temp,valor,(self.k_elong,self.k_elong)))
+
+            for j in range(len(self.elong_species[i])):
+                reactants = []
+                products = []
+                if j < (len(self.elong_species[i]) - 1):
+                    reactants.append(self.elong_species[i][j])
+                    products.append(self.elong_species[i][j+1])
+                    self.reactions.append(Reaction(reactants,products,(self.k_elong,self.k_elong)))
+                else:
+                    for k in self.species:
+                        if k.name.split('-')[0] == 'mRNA':
+                            if k.tag_rna == i.tag_dna:
+                                reactants.append(self.elong_species[i][j])
+                                products.append(k)
+                        elif k.name.split('-')[0] == 'RNApolymerase':
+                            products.append(k)
+                    self.reactions.append(Reaction(reactants,products,(20,20)))
+    
     def generate_dep_graph(self):
         self.dep_graph = {}
         for i in self.reactions:
@@ -351,37 +417,61 @@ class NextReactionMethod(object):
 
         species_dict.update({'time':[system_time]})
 
+        """
+        supreme_elong_species = {}
+        for i in self.elong_species.keys():
+            temp = {}
+            for j in self.elong_species[i]:
+                temp.update({j.name:[j.count]})
+                supreme_elong_species.update({i:temp})
+
+        supreme_elong_species.update({'time':[system_time]})
+        """
+        
+
         tau_list = []
         for m in self.reactions:
             m.get_tau(system_time) 
             tau_list.append(m.tau)
 
         self.generate_dep_graph()
-
+        
 
         for i in range(step):
             reaction_index = np.argmin(tau_list)
-
+            
             dependency_list = self.dep_graph[self.reactions[reaction_index]]
 
             system_time = tau_list[reaction_index] #this will give us the time variable input necessary for get_det_tau calculation
             
+            """
+            prop_list = []
+            for h in self.reactions:
+                prop_list.append(h.prop)
+            print species_dict,prop_list,tau_list,reaction_index
+            """
+            
+            if self.reactions[reaction_index].reactants == self.reactions[reaction_index].products:
+                for j in self.reactions[reaction_index].reactants:
+                    new = j.count - 1
+                    j.count = new
+            
+            else:
+                for j in self.reactions[reaction_index].reactants:
+                    new = j.count - 1
+                    j.count = new
+                for j in self.reactions[reaction_index].products:
+                    new = j.count + 1
+                    j.count = new
+
+
 
             for j in dependency_list:
-                
-                if j == self.reactions[reaction_index]:
-                    for k in j.reactants:
-                        new = k.count - 1
-                        k.count = new
-               
-                    for k in j.products:
-                        new = k.count + 1
-                        k.count = new
-                       
+                if j == self.reactions[reaction_index]:       
                     j.get_propensity()
                     
                     j.get_tau(system_time)
-                    
+                        
                     tau_list[reaction_index] = j.tau
                 
                 else:
