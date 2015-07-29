@@ -318,6 +318,15 @@ class Reaction(object):
 
 
     def get_tau(self, time): #this method is to recalculate the tau for the reaction that has just been executed
+
+    	"""
+    	This method is necessary to recalculate tau for the reaction that has just been executed according to the
+    	Next Reaction Method. If the reaction that has just been executed has an updated propensity value of zero, then
+    	the tau value is stored in self.tau_old to await recall when the propensity becomes non-zero again. The moment the 
+    	value becomes non-zero, a random number is drawn from a uniform distribution and the tau value is recalculated. This
+    	delayed random draw is not explicitly stated in the Gibson and Brucks Next Reaction Method, but is inferred based
+    	upon the principles of the Next Reaction Method.  
+    	"""
         if self.prop == 0:
             self.tau_old = self.tau
             self.t = time
@@ -328,6 +337,11 @@ class Reaction(object):
         #self.tau = tau
 
     def get_det_tau(self, time): #this method is to recalculate the tau for reactions that are dependent on the just executed reaction
+    	"""
+    	This method calculates the taus of reactions that are affected by the execution of the previous reaction according to the NRM.
+    	The "deterministic" calculation can be found in Gibson and Brucks Next Reaction Method. For reactions that were previously
+    	set to zero, an alternate formulae is used to get the tau value.
+    	"""
         if self.prop == 0:
             if self.tau != np.inf: 
                 self.tau_old = self.tau
@@ -350,6 +364,11 @@ class Reaction(object):
     
 
 class NextReactionMethod(object):
+
+	"""
+	This class initiates the methods for creating the list of reactions, appending transcription and translation elongation
+	reactions to the list (self.reactions) and executing the Next Reaction Method.
+	"""
     
     def __init__(self, directory=False, num_elong=False, k_elong=False, k_translation_elong=False):
         self.k_elong = k_elong
@@ -363,13 +382,13 @@ class NextReactionMethod(object):
             self.read_from_file(directory)
             """
 
-    def create_rec_list(self, rec_list):
+    def create_rec_list(self, rec_list): #creates the reaction list
         assert type(rec_list[0]) == Reaction
         self.reactions = rec_list
 
 
         
-    def create_species_list(self):
+    def create_species_list(self): #creates a list of species objects - this does not include transcription and translation reactions
        
         #Creacting a list of species
         
@@ -394,10 +413,24 @@ class NextReactionMethod(object):
        
 
     def create_transcription_elongation_species(self):
-        elong_species_dict = {}
+    	"""
+    	Creating the transcription elongation consists of the following steps. The sequential termination and NUT 
+    	sites have to be modeled along the DNA. Two properties of the object include the termination sequence and the NUT sequence.
+    	Therefore, the species objects must include RNApolymerase on NUT sites, RNApolymerase + N protein on Nut sites,
+    	RNApolymerase on termination sites, RNApolymerase + N protein on termination sites. This method creates a dictionary
+    	of species objects (DNA species objects in this simulation are actually promoters) as keys and values as a list of the
+    	individual nucleotides associated with the DNA. These nucleotides include all possible configuration of proteins on that 
+    	nucleic acid (RNApolymerase + N protein for example). If there is no need to model NUT and termination sites, then the
+    	number of species objects in the value list is simply the length of the transcript. If species and nut sites are included,
+    	then the value for that DNA object is a list of list with each list containing species objects of different nucleotide
+    	length and protein make-up (one list will contain all the species that convey RNApolymerase + N protein translocating on the 
+    	NUT sites). The other list will contain species objects pertaining to the termination sites including the possible combinations
+		of RNApolymerase and N protein on these sites.
+    	"""
+        elong_species_dict = {} 
         for i in self.species:
 	        if type(i) == DNA:
-	            if i.nut_sequence and i.termination_sequence:
+	            if i.nut_sequence and i.termination_sequence: #not all DNA objects will have NUT sites and termination sites
 	                elong_list = []
 	                for j in range(i.dna_length):
 	                    if j < i.nut_sequence[0]:
@@ -413,7 +446,7 @@ class NextReactionMethod(object):
 	                        name = str(i.name) + '-' + str(j)
 	                        elong_list.append(Species(name,count=0))
 	                elong_species_dict.update({i:[elong_list]})
-	            else:
+	            else: 
 	                elong_list = []
 	                for j in range(i.dna_length):
 	                    name = str(i.name) + '-' + str(j)
@@ -446,6 +479,13 @@ class NextReactionMethod(object):
                 self.transcription_elong_species[i].append(term_list)
 
     def create_trancription_elongation_reactions(self):
+    	"""
+    	The transcription elongation reactions are represented in a dictionary. The keys in the dictionary represent the DNA species objects
+    	and the values mirror the list of list for the species objects representing the different possible configurations of RNApolymerase
+    	on the DNA. At the end of the code, the dictionary is exhaustively compiled into a single list of reactions representing all
+    	possible reactions associated with a given DNA object (including NUT sites and termination). This list (along with the
+    	translation elongation reactions) are then appended to the self.reactions list and ready for the Next Reaction Method Execution. 
+    	"""
 		elong_reactions_dict = {}
 		for i in self.transcription_elong_species.keys():
 			if i.nut_sequence and i.termination_sequence:
