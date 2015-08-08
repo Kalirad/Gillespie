@@ -365,10 +365,10 @@ class Reaction(object):
 
 class NextReactionMethod(object):
 
-	"""
-	This class initiates the methods for creating the list of reactions, appending transcription and translation elongation
-	reactions to the list (self.reactions) and executing the Next Reaction Method.
-	"""
+    """
+    This class initiates the methods for creating the list of reactions, appending transcription and translation elongation
+    reactions to the list (self.reactions) and executing the Next Reaction Method.
+    """
     
     def __init__(self, directory=False, num_elong=False, k_elong=False, k_translation_elong=False):
         self.k_elong = k_elong
@@ -479,13 +479,13 @@ class NextReactionMethod(object):
                 self.transcription_elong_species[i].append(term_list)
 
     def create_trancription_elongation_reactions(self):
-    	"""
-    	The transcription elongation reactions are represented in a dictionary. The keys in the dictionary represent the DNA species objects
-    	and the values mirror the list of list for the species objects representing the different possible configurations of RNApolymerase
-    	on the DNA. At the end of the code, the dictionary is exhaustively compiled into a single list of reactions representing all
-    	possible reactions associated with a given DNA object (including NUT sites and termination). This list (along with the
-    	translation elongation reactions) are then appended to the self.reactions list and ready for the Next Reaction Method Execution. 
-    	"""
+		"""
+		The transcription elongation reactions are represented in a dictionary. The keys in the dictionary represent the DNA species objects
+		and the values mirror the list of list for the species odbjects representing the different possible configurations of RNApolymerase
+		on the DNA. At the end of the code, the dictionary is exhaustively compiled into a single list of reactions representing all
+		possible reactions associated with a given DNA object (including NUT sites and termination). This list (along with the
+		translation elongation reactions) are then appended to the self.reactions list and ready for the Next Reaction Method Execution. 
+		"""
 		elong_reactions_dict = {}
 		for i in self.transcription_elong_species.keys():
 			if i.nut_sequence and i.termination_sequence:
@@ -675,7 +675,7 @@ class NextReactionMethod(object):
     def stat_reaction_list(self, stat_list):
     	self.stat_reaction_list = stat_list
 
-    def operator_stat_model_dependencies(self):
+    def PR_PRM_model_dependencies1(self):
 		#Use the positions of RNAP on the list(either position 1 or 3 - zero based indexing - to determine which reactions are affected
 		config = np.array([[1, 0, 0, 0, 0.0], [2, 0, 0, 'R', -11.7], [3, 0, 'R', 0, -10.1], [4, 'R', 0, 0, -10.1], [5, 0, 0, 'C', -10.8],
 		[6, 0, 'C', 0, -10.8], [7, 'C', 0, 0, -12.1], [8,'RNAP', 0, 0, -11.5], [9, 0, 0, 'RNAP', -12.5], 
@@ -688,24 +688,74 @@ class NextReactionMethod(object):
 		[34, 'R', 'C', 'C', -31.7], [35, 'C', 'R', 'C', -33.0], [36, 'C', 'C', 'R', -34.6], [37, 'RNAP', 'R', 'R', -35.2], 
 		[38, 'RNAP', 'C', 'C', -33.1], [39, 'RNAP', 'C', 'R', -34.0], [40, 'RNAP', 'R', 'C', -32.4]])
 		
-		stat1_config_dependency = {}
-		for i in self.transcription_elong_species.keys():
-			for j in config:
-				for k in range(len(j)):
-					dep_list = []
-					for l in self.stat_reaction_list:
-						if j[k] == 1:
-							for m in l.reactants:
-								if m.name.split('-')[0] == 'Open':
-									if m.name.split('-')[1] == 'PRM':
-										dep_list.append(l)
-					stat1_config_dependency.update({i:dep_list})
+		occupancy_species_dict = {} 
+		"""
+		Creates a dictionary which relates a particular occupancy state with a list of relevant species.  
+		"""
+		for i in range(len(config)):
+			occupancy_increase = []
+			occupancy_decrease = []
+			for j in range(len(config[i])):
+				if config[i][j] == 'R':
+					for k in self.species:
+						if config[i][j] == k:
+							occupancy_decrease.append(k)
+				elif config[i][j] == 'C':
+					for k in self.species:
+						if config[i][g] == k:
+							occupancy_decrease.append(k)
+				elif config[i][j] == 'RNAP':
+					if j == 1:
+						for k in self.species:
+							if k.name == 'PRM':
+								occupancy_decrease.append(k)
+							elif k.name == 'RNAP':
+								occupancy_list.append(k)
+							elif k.name.split('-')[0] == 'Open':
+								if k.name.split('-')[1] == 'PRM':
+									occupancy_increase.append(k)
 
+					elif j == 3:
+						for k in self.species:
+							if k.name == 'PR':
+								occupancy_decrease.append(k)
+							elif k.name == 'RNAP':
+								occupancy_decrease.append(k)
+							elif k.name.split('-')[0] == 'Open':
+								if k.name.split('-')[1] == 'PR':
+									occupancy_increase.append(k)
+			if len(occupancy_increase) > 0:
+				occupancy_species_dict.update({i:(occupancy_increase,occupancy_decrease)})
+			else:
+				occupancy_species_dict.update({i:occupancy_list})
+		self.occupancy_species1 = occupancy_species_dict
 
+		occupancy_reaction_dict = {}
+		"""
+		Creates a dictionary which relates a particular occupancy state with the Gillespie reactions (self.reactions) that are affected. 
+		
+		There are no Gillespie reactions explicitly associated with RNApolymerase (RNAP) or DNA objects(promoters).
+		These are 'implicit' reactions as they are alluded to in the stat_thermodynamic model for operator/promoter binding.
 
+		"""
+		for i in occupancy_species_dict.keys():
+			if type(occupancy_species_dict[i]) == tuple:
+				for j in range(len(occupancy_species_dict[i])):
+					final_list = occupancy_species_dict[i][0]
+					if j > 0:
+						final_list += occupancy_species_dict[i][j]
+				reaction_occupancy_list = list(set(final_list))
 
+			reaction_list = []
+			for j in reaction_occupation_list:
+				for k in self.reactions:
+					for l in k.reactants:
+						if j.name == k.name:
+							reaction_list.append(k)
+			occupancy_reaction_dict.update({i:reaction_list})
+		self.occupancy_reaction1 = occupancy_reaction_dict
 
-    def operator_stat_model(self):
+    def PR_PRM_stat_model1(self):
 		config = np.array([[1, 0, 0, 0, 0.0], [2, 0, 0, 'R', -11.7], [3, 0, 'R', 0, -10.1], [4, 'R', 0, 0, -10.1], [5, 0, 0, 'C', -10.8],
 		[6, 0, 'C', 0, -10.8], [7, 'C', 0, 0, -12.1], [8,'RNAP', 0, 0, -11.5], [9, 0, 0, 'RNAP', -12.5], 
 		[10, 0, 'R', 'R', -23,7], [11, 'R',  0, 'R', -21.8], [12, 'R', 'R', 0, -22.2], [13, 0, 'C', 'C', -21.6],
@@ -731,33 +781,257 @@ class NextReactionMethod(object):
 					R_power += 1
 				elif i[j] == 'RNAP':
 					RNAP_power += 1
-			state_energy = (np.exp(((-1)*float(i[-1]))/float(boltzman*310.15))*(R**r_power)*(C**c_power)*(RNAP**rnap_power))
+			for j in self.species:
+				if j.name == 'C':
+					for k in self.species:
+						if k.name == 'R':
+							for l in self.species:
+								if l.name == 'RNAP': #when the volume function is finished, change count to concentration
+									state_energy = (np.exp(((-1)*float(i[-1]))/float(boltzman*310.15))*(k.count**R_power)*(j.count**C_power)*(l.count**RNAP_power))
 			state_energy_list.append(state_energy)
+
+
+
+		for i in range(len(config)):
+			for j in range(len(config[i])):
+				if config[i][j] == 'RNAP':
+					if j == 1:
+						for k in self.species:
+							if k.name == 'PRM':
+								if k.count == 0:
+									state_energy_list[i] == 0
+					elif j == 3:
+						for k in self.species:
+							if k.name == 'PR':
+								if k.count == 0:
+									state_energy_list[i] == 0
+		for i in state_energy_list:
+			prob = i/float(np.sum(state_energy_list))
+			probability_configuration_list.append(prob)
+		self.PR_PRM_configuration1 = probability_configuration_list
+
+
+    def PR_PRM_model_config_selection1(self):
+		Y = np.random.multinomial(1,self.PR_PRM_configuration1)
+		X = np.argmax(Y)
+		if type(self.occupancy_species1[X]) == tuple:
+			for i in self.occupancy_species1[X][0]:
+				i.count += 1
+			for i in self.occupancy_species1[X][1]:
+				i.count -= 1
+		else:
+			for i in self.occupancy_species1[X]:
+				i.count -= 1
+		for i in self.occupancy_reaction1[X]:
+			i.get_propensity
+		self.current_PR_PRM_config1 = X
+
+	def PRE_model_dependencies2(self):
+		"This is the statistical binding model for the PRE promoter"
+		config2 = np.array([[0,0,0],[0,'RNAP',-9.9],['CII',0,-9.7],['CII','RNAP',-21.5]])
+
+		species_config2_dict = {}
+		reaction_config2_dict = {}
+		for i in range(len(config2)):
+			species_increase = []
+			species_decrease = []
+			for j in config2[i]:
+				if j == 'RNAP':
+					for k in self.species:
+						if k.name.split('-')[0] == 'Open':
+							if k.name.split('-')[1] == 'PRE':
+								species_increase.append(k)
+					species_decrease.append(j)
+				else:
+					if type(j) == str:
+						for k in self.species:
+							if k.name == j:
+								species_decrease.append(j)
+			if len(species_increase) > 0:
+				species_config2_dict.update({i:(species_increase,species_decrease)})
+			else:
+				species_config2_dict.update({i:species_decrease})
+		self.occupancy_species2 = species_config2_dict
+
+		reaction_config2_dict = {}
+		for i in species_config2_dict.keys():
+			if type(species_config2_dict[i]) == tuple:
+				final_list = species_config2_dict[i][0]
+				for j in range(len(species_config2_dict[i])):
+					if j > 0:
+						final_list += species_config2_dict[i][j]
+				reaction_occupancy_list = list(set(final_list))
+			else:
+				reaction_occupancy_list = list(set(species_config2_dict[i]))
+
+			reaction_list = []
+			for j in reaction_occupancy_list:
+				for k in self.reactions:
+					for l in self.reactants:
+						if l.name == j.name:
+							reaction_list.append(k)
+			reaction_config2_dict.update({i:reaction_list})
+		self.occupancy_reaction2 = reaction_config2_dict
+
+
+	def PRE_stat_model2(self):
+		config2 = np.array([[0,0,0.0],[0,'RNAP',-9.9],['CII',0,-9.7],['CII','RNAP',-21.5]])
+
+		state_energy_list = []
+		probability_configuration_list = []
+
+		for i in config2:
+			RNAP_power = 0
+			CII_power = 0
+			for j in range(len(i)):
+				if i[j] == 'RNAP':
+					RNAP_power += 1
+				elif i[j] == 'CII':
+					CII_power += 1
+			for j in self.species:
+				if j.name == 'CII':
+					for k in self.species:
+						if k.name == 'RNAP':
+							state_energy = (np.exp(((-1)*float(i[-1]))/float(boltzman*310.15))*(j.count**CII_power)*(k.count**RNAP_power))
+			state_energy_list.append(state_energy)
+
+
+		for i in range(len(config2)):
+			for j in range(len(config2[i]):
+				if config2[i][j] == 'RNAP':
+					for k in self.species:
+						if k.name == 'PRE':
+							if k.count == 0:
+								state_energy_list[i] = 0
 
 		for i in state_energy_list:
 			prob = i/float(np.sum(state_energy_list))
 			probability_configuration_list.append(prob)
+		self.PRE_configuration2 = probability_configuration_list
 
-		config_dependency_dict = {}
-		for i in range(len(config)):
-			dependency_config = []
-			for j in range(len(config[i])):
-				if type(config[i][j]) == str:
-					for k in self.reactions:
-						for l in k.reactants:
-							if config[i][j] == l.name:
-								dependency_config.append(k)
-								break
-			config_dependency_dict.update({i,dependency_config})
+	def PRE_model_config_selection2(self):
+		Y = np.random.multinomial(1,self.PRE_configuration2)
+		X = np.argmax(Y)
+		if type(self.occupancy_species2[X]) == tuple:
+			if i == 0:
+				for j in self.occupancy_species2[X][i]:
+					j.count += 1
+			elif i == 1:
+				for j in self.occupancy_species2[X][i]:
+					j.count -= 1
+		else:
+			self.occupancy_species2[X][i].count -= 1
+
+		for i in self.occupancy_reaction2[X]:
+			i.get_propensity
+
+		self.current_PRE_config2 = X
+
+	def PL_model_dependencies3(self):
+		config3 = np.array([[0,0,0.0],['C',0,-10.9],[0,'C',-12.1],['R',0,-11.7],[0,'R',-10.1],[0,'RNAP',-12.5],
+		['C','C',-22.9],['C','R',-20.9],['R','C',-22.8],['R','R',-23.7]])
+
+		species_config3_dict = {}
+		for i in range(len(config3)):
+			species_increase = []
+			species_decrease = []
+			for j in config3[i]:
+				if j == 'RNAP':
+					for k in self.species:
+						if k.name.split('-')[0] == 'Open':
+							if k.name.split('-')[1] == 'PL':
+								species_increase.append(k)
+						elif k.name  == 'RNAP':
+							species_decrease.append(k)
+				else:
+					if type(j) == str:
+						for k in self.species:
+							if k.name == j:
+								species_decrease.append(k)
+			if len(species_increase) > 0:
+				species_config3_dict.update({i:(species_increase,species_decrease)})
+			else:
+				species_config3_dict.update({i:species_decrease})
+		self.occupancy_species3 = species_config3_dict
+
+		reaction_config3_dict = {}
+		for i in species_config3_dict.keys():
+			if type(species.config3_dict[i]) == tuple:
+				for j in range(len(species.config3_dict[i])):
+					final_list = species.config3_dict[i][0]
+					if j > 0:
+						final_list += species.config3_dict[i][j]
+					reaction_occupancy_list = list(set(final_list))
+			else:
+				reaction_occupancy_list = list(set(species.config3_dict[i]))
+
+			reaction_list = []
+			for j in reaction_occupancy_list:
+				for l in self.reactions:
+					for k in l.reactants:
+						if j.name == k.name:
+							reaction_list.append(l)
+			reaction_config3_dict.update({i:reaction_list})
+		self.occupancy_reaction3 = reaction_config3_dict
 
 
-		Y =np.argmax(np.random.multinomial(1,probability_configuration_list))
+	def PL_stat_model3(self):
+		config3 = np.array([[0,0,0.0],['C',0,-10.9],[0,'C',-12.1],['R',0,-11.7],[0,'R',-10.1],[0,'RNAP',-12.5],
+		['C','C',-22.9],['C','R',-20.9],['R','C',-22.8],['R','R',-23.7]])
 
-		for i in config[Y]:
-			if type(i) == str:
-				for j in self.species:
-					if j.name == i:
-						j.count -= 1
+		state_energy_list = []
+		probability_configuration_list = []
+
+		for i in config3:
+			R_power = 0
+			C_power = 0
+			RNAP_power = 0
+			for j in range(len(i)):
+				if j == 'C':
+					C_power += 1
+				elif j == 'R':
+					R_power += 1
+				elif j == 'RNAP':
+					RNAP_power += 1
+			for j in self.species:
+				if j.name == 'R':
+					for k in self.species:
+						if k.name == 'C':
+							for l in self.species:
+								if l.name == 'RNAP':
+									state_energy = (np.exp(((-1)*float(i[-1]))/float(boltzman*310.15))*(k.count**C_power)*(j.count**R_power)*(l.count**RNAP_power))
+			state_energy_list.append(state_energy)
+		
+		for i in range(len(config3)):
+			for j in config3[i]:
+				if j == 'RNAP':
+					for k in self.species:
+						if k.name == 'PL':
+							if k.count == 0:
+								state_energy_list[i] = 0
+
+		for i in state_energy_list:
+			prob = i/float(np.sum(state_energy_list))
+			probability_configuration_list.append(prob)
+		self.PL_configuration3 = probability_configuration_list
+
+
+	def PL_model_config_selection3(self):
+		Y = np.random.mulitinomial(1,self.PL_configuration3)
+		X = np.argmax(Y)
+		if type(self.occupancy_species3[X]) == tuple:
+			for j in self.occupancy_species3[X][0]:
+				j.count += 1
+			for j in self.occupancy_species3[X][1]:
+				j.count -= 1
+		else:
+			for j in self.occupancy_species3[X]:
+				j.count -= 1
+
+		for i in self.occupancy_reaction3[X]:
+			i.get_propensity
+
+		self.current_PL_config3 = X
 
 
     def NRM_execution(self, step):
@@ -780,21 +1054,82 @@ class NextReactionMethod(object):
             tau_list.append(m.tau)
 
         self.generate_dep_graph()
-        
+
+        self.PR_PRM_model_dependencies1()
+
+        self.PRE_model_dependencies2()
+
+        self.PL_model_dependencies3()
 
         for i in range(step):
-            reaction_index = np.argmin(tau_list)
-            
-            dependency_list = self.dep_graph[self.reactions[reaction_index]]
+        	if i > 0:
+        		for j in self.occupancy_species1[prior_PR_PRM_configuration]:
+        			if type(self.occupancy_species1[prior_PR_PRM_configuration]) == tuple:
+        				for k in self.occupancy_species1[prior_PR_PRM_configuration][0]:
+        					if k.count != 0:
+        						k.count -= 1
+        						for l in self.occupancy_species1[prior_PR_PRM_configuration][1]:
+        							l.count += 1				
+        			else:
+        				for k in self.occupancy_species1[prior_PR_PRM_configuration]:
+        					k.count += 1
 
-            system_time = tau_list[reaction_index] #this will give us the time variable input necessary for get_det_tau calculation
+        		for j in self.occupancy_species2[prior_PRE_configuration]:
+        			if type(self.occupancy_species2[prior_PRE_configuration]) == tuple:
+        				for k in self.occupancy_species2[prior_PRE_configuration][0]:
+        					if k.count != 0:
+        						k.count -= 1
+        						for l in self.occupancy_species1[prior_PRE_configuration][1]:
+        							l.count += 1
+        			else:
+        				for k in self.occupancy_species2[prior_PRE_configuration]:
+        					k.count += 1
+
+        		for j in self.occupancy_species3[prior_PL_configuration]:
+        			if type(self.occupancy_species3[prior_PL_configuration]) == tuple:
+        				for k in self.occupancy_species3[prior_PL_configuration][0]:
+        					if k.count != 0:
+        						k.count -= 1
+        						for l in self.occupancy_species3[prior_PL_configuration][1]:
+        							l.count += 1
+        			else:
+        				for k in self.occupancy_species3[prior_PL_configuration]:
+        					k.count += 1
+
+        		for j in self.occupation_reaction1[prior_stat_configuration]:#Is this really necessary, propensity will be calculated infuture
+        			j.get_propensity
+
+        		for j in self.occupancy_reaction2[prior_PRE_configuration]:
+        			j.get_propensity
+
+        		for j in self.occupancy_reaction3[prior_PL_configuration]:
+        			j.get_propensity
+
+
+        	self.PR_PRM_stat_model1()
+
+        	self.PR_PRM_model_config_selection1()
+
+        	self.PRE_stat_model2()
+
+        	self.PRE_model_config_selection2()
+
+        	self.PL_stat_model3()
+
+        	self.PL_model_config_selection3()
+
+        	prior_PR_PRM_configuration = self.current_PR_PRM_config1
+
+        	prior_PRE_configuration = self.current_PRE_config2
+
+        	prior_PL_configuration = self.current_PL_config3
+
+        	reaction_index = np.argmin(tau_list)
             
-            """
-            prop_list = []
-            for h in self.reactions:
-                prop_list.append(h.prop)
-            print species_dict,prop_list,tau_list,reaction_index
-            """
+        	dependency_list = self.dep_graph[self.reactions[reaction_index]]
+
+        	system_time = tau_list[reaction_index] #this will give us the time variable input necessary for get_det_tau calculation
+            
             
             if self.reactions[reaction_index].reactants == self.reactions[reaction_index].products:
                 for j in self.reactions[reaction_index].reactants:
