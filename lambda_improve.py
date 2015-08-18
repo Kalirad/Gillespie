@@ -1060,7 +1060,8 @@ class NextReactionMethod(object):
 				j.get_propensity()
 				for k in range(len(self.reactions)):
 					if j == self.reactions[k]:
-						tau_list[k] = j.get_det_tau(system_time)
+						j.get_det_tau(system_time)
+						tau_list[k] = j.tau
 
 
 	def tau_current_occup_update(self, tau_list, system_time):
@@ -1083,7 +1084,9 @@ class NextReactionMethod(object):
 			for j in i[1][i[0]]:
 				for k in range(len(self.reactions)):
 					if j == self.reactions[k]:
-						tau_list[k] = j.get_det_tau(system_time)
+						j.get_det_tau(system_time)
+						print j.prop, j.tau
+						tau_list[k] = j.tau
 
 
 
@@ -1117,7 +1120,8 @@ class NextReactionMethod(object):
 		tau_list = []
 		for m in self.total_reactions:
 			m.get_propensity()
-			tau_list.append(m.get_tau(system_time))
+			m.get_det_tau(system_time)
+			tau_list.append(m.tau)
 
 		for i in self.total_reactions:
 			print i.prop
