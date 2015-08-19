@@ -876,10 +876,11 @@ class NextReactionMethod(object):
 				elif i[j] == 'CII':
 					CII_power += 1
 			for j in self.species:
-				if j.name == 'CII':
-					for k in self.species:
-						if k.name == 'RNAP':
-							state_energy = (np.exp(((-1)*float(i[-1]))/float(boltzman*310.15))*(j.molar_conc**CII_power)*(k.molar_conc**RNAP_power))
+				if type(j) == Protein:
+					if j.name == 'CII':
+						for k in self.species:
+							if k.name == 'RNAP':
+								state_energy = (np.exp(((-1)*float(i[-1]))/float(boltzman*310.15))*(j.molar_conc**CII_power)*(k.molar_conc**RNAP_power))
 			state_energy_list.append(state_energy)
 
 
@@ -906,7 +907,7 @@ class NextReactionMethod(object):
 		if type(self.occupancy_species2[Z]) == tuple:
 			for j in self.occupancy_species2[Z][0]:
 				j.count += 1
-			for j in self.occupancy_species2[Z][0]:
+			for j in self.occupancy_species2[Z][1]:
 				j.count -= 1
 		else:
 			for j in self.occupancy_species2[Z]:
@@ -971,8 +972,7 @@ class NextReactionMethod(object):
 
 
 	def PL_stat_energy_model_selection3(self):
-		config3 = np.array([[0,0,0.0],['C',0,-10.9],[0,'C',-12.1],['R',0,-11.7],[0,'R',-10.1],[0,'RNAP',-12.5],
-		['C','C',-22.9],['C','R',-20.9],['R','C',-22.8],['R','R',-23.7]])
+		config3 = np.array([[0,0,0.0],['C',0,-10.9],[0,'C',-12.1],['R',0,-11.7],[0,'R',-10.1],[0,'RNAP',-12.5],['C','C',-22.9],['C','R',-20.9],['R','C',-22.8],['R','R',-23.7]])
 
 		boltzman = (1.9872041 * (10**(-3)))
 		state_energy_list = []
@@ -982,7 +982,7 @@ class NextReactionMethod(object):
 			R_power = 0
 			C_power = 0
 			RNAP_power = 0
-			for j in range(len(i)):
+			for j in i:
 				if j == 'C':
 					C_power += 1
 				elif j == 'R':
@@ -1041,7 +1041,7 @@ class NextReactionMethod(object):
 
 		M = [self.occupancy_species1, self.occupancy_species2, self.occupancy_species3]
 
-		N = [self.occupation_reaction1, self.occupation_reaction2, self.occupation_reaction3]
+		N = [self.occupancy_reaction1, self.occupancy_reaction2, self.occupancy_reaction3]
 
 		Get = [val for val in zip(L,J,M,N) if val[0] != val[1]]
 
@@ -1085,7 +1085,6 @@ class NextReactionMethod(object):
 				for k in range(len(self.reactions)):
 					if j == self.reactions[k]:
 						j.get_det_tau(system_time)
-						print j.prop, j.tau
 						tau_list[k] = j.tau
 
 
@@ -1123,10 +1122,6 @@ class NextReactionMethod(object):
 			m.get_det_tau(system_time)
 			tau_list.append(m.tau)
 
-		for i in self.total_reactions:
-			print i.prop
-
-		print tau_list
 
 		self.generate_dep_graph()
 
@@ -1146,7 +1141,7 @@ class NextReactionMethod(object):
 			self.PL_stat_energy_model_selection3()
 
 			if i > 0:
-				stat_occup_change(prior_PR_PRM_configuration, prior_PRE_configuration, prior_PL_configuration, tau_list, system_time)
+				self.stat_occup_change(prior_PR_PRM_configuration, prior_PRE_configuration, prior_PL_configuration, tau_list, system_time)
 
 			self.PR_PRM_model_config_update1()
 
@@ -1161,11 +1156,6 @@ class NextReactionMethod(object):
 			prior_PL_configuration = self.current_PL_config3
 
 			self.tau_current_occup_update(tau_list, system_time)
-
-			for i in self.total_reactions:
-				print i.prop
-
-			print tau_list
 
 			reaction_index = np.argmin(tau_list)
 
