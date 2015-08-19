@@ -1039,6 +1039,43 @@ class NextReactionMethod(object):
 		for i in self.occupancy_reaction3[Z]:
 			i.get_propensity()
 
+
+
+	def stat_occup_change(self, tau_list, system_time):
+
+		L = [self.current_PR_PRM_config1, self.current_PRE_config2, self.current_PL_config3]
+
+		M = [self.occupancy_species1, self.occupancy_species2, self.occupancy_species3]
+
+		N = [self.occupancy_reaction1, self.occupancy_reaction2, self.occupancy_reaction3]
+
+		Get = [val for val in zip(L,M,N)]
+
+		for i in Get:
+			for j in i[1][i[0]]:
+				if type(i[1][i[0]]) == tuple:
+					for k in i[1][i[0]][0]:
+						if k.count != 0:
+							k.count -= 1
+							for l in i[1][i[0]][1]:
+								l.count += 1
+				else:
+					for k in i[1][i[0]]:
+						k.count -= 1
+
+			for j in i[2][i[0]]:
+				j.get_propensity()
+				for k in range(len(self.reactions)):
+					if j == self.reactions[k]:
+						j.get_det_tau(system_time)
+						tau_list[k] == j.tau
+
+
+
+
+
+
+	"""
 	def stat_occup_change(self, prior_PR_PRM_configuration, prior_PRE_configuration, prior_PL_configuration, tau_list, system_time):
 
 		
@@ -1068,7 +1105,7 @@ class NextReactionMethod(object):
 				for k in range(len(self.reactions)):
 					if j == self.reactions[k]:
 						j.get_det_tau(system_time)
-						tau_list[k] = j.tau
+						tau_list[k] = j.tau"""
 
 
 	def tau_current_occup_update(self, tau_list, system_time):
@@ -1147,14 +1184,14 @@ class NextReactionMethod(object):
 
 		for i in range(step):
 
+			if i > 0:
+				self.stat_occup_change(tau_list, system_time)
+
 			self.PR_PRM_stat_energy_model_selection1()
 
 			self.PRE_stat_energy_model_selection2()
 
 			self.PL_stat_energy_model_selection3()
-
-			if i > 0:
-				self.stat_occup_change(prior_PR_PRM_configuration, prior_PRE_configuration, prior_PL_configuration, tau_list, system_time)
 
 			self.PR_PRM_model_config_update1()
 
@@ -1222,7 +1259,7 @@ class NextReactionMethod(object):
 
 			species_dict['time'].append(system_time)
 
-		return species_dict,L,M,N   
+		return species_dict
 
 
 	def multiple_simulation(self,trajectories,step):
