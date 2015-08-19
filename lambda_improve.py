@@ -452,7 +452,7 @@ class NextReactionMethod(object):
 						term_list.append(Species(name,count=0))
 				self.transcription_elong_species[i].append(term_list)
 
-	def create_trancription_elongation_reactions(self):
+	def create_transcription_elongation_reactions(self):
 		"""
 		The transcription elongation reactions are represented in a dictionary. The keys in the dictionary represent the DNA species objects
 		and the values mirror the list of list for the species odbjects representing the different possible configurations of RNApolymerase
@@ -636,10 +636,10 @@ class NextReactionMethod(object):
 
 	def generate_dep_graph(self):
 		self.dep_graph = {}
-		for i in self.reactions:
+		for i in self.total_reactions:
 			temp = i.reactants + i.products
 			dep_rec = []
-			for j in self.reactions:
+			for j in self.total_reactions:
 				set_value = [val for val in temp if val in j.reactants]
 				if len(set_value) != 0:
 					dep_rec.append(j)
@@ -774,17 +774,20 @@ class NextReactionMethod(object):
 				if config[i][j] == 'RNAP':
 					if j == 1:
 						for k in self.species:
-							if k.name == 'PRM':
-								if k.count == 0:
-									state_energy_list[i] == 0
+							if type(k) == DNA:
+								if k.name == 'PRM':
+									if k.count == 0:
+										state_energy_list[i] = 0
 					elif j == 3:
 						for k in self.species:
-							if k.name == 'PR':
-								if k.count == 0:
-									state_energy_list[i] == 0
+							if type(k) == DNA:
+								if k.name == 'PR':
+									if k.count == 0:
+										state_energy_list[i] = 0
 		for i in state_energy_list:
 			prob = i/float(np.sum(state_energy_list))
 			probability_configuration_list.append(prob)
+
 
 		Y = np.random.multinomial(1,probability_configuration_list)
 		X = np.argmax(Y)
@@ -888,13 +891,15 @@ class NextReactionMethod(object):
 			for j in range(len(config2[i])):
 				if config2[i][j] == 'RNAP':
 					for k in self.species:
-						if k.name == 'PRE':
-							if k.count == 0:
-								state_energy_list[i] = 0
+						if type(k) == DNA:
+							if k.name == 'PRE':
+								if k.count == 0:
+									state_energy_list[i] = 0
 
 		for i in state_energy_list:
 			prob = i/float(np.sum(state_energy_list))
 			probability_configuration_list.append(prob)
+
 
 		Y = np.random.multinomial(1,probability_configuration_list)
 		X = np.argmax(Y)
@@ -1002,13 +1007,15 @@ class NextReactionMethod(object):
 			for j in config3[i]:
 				if j == 'RNAP':
 					for k in self.species:
-						if k.name == 'PL':
-							if k.count == 0:
-								state_energy_list[i] = 0
+						if type(k) == DNA:
+							if k.name == 'PL':
+								if k.count == 0:
+									state_energy_list[i] = 0
 
 		for i in state_energy_list:
 			prob = i/float(np.sum(state_energy_list))
 			probability_configuration_list.append(prob)
+
 
 		Y = np.random.multinomial(1,probability_configuration_list)
 
@@ -1093,7 +1100,7 @@ class NextReactionMethod(object):
 
 		self.create_transcription_elongation_species()
 
-		self.create_trancription_elongation_reactions()
+		self.create_transcription_elongation_reactions()
 
 		self.create_translation_elongation_species()
 
@@ -1112,7 +1119,7 @@ class NextReactionMethod(object):
 		species_dict = {}
 		for i in self.species:
 			i.molar()
-			species_dict.update({i.name:[i.molar_conc]})
+			species_dict.update({i:[i.c]})
 
 		species_dict.update({'time':[system_time]})
 
@@ -1132,6 +1139,12 @@ class NextReactionMethod(object):
 		self.PL_model_dependencies3()
 
 
+		L = []
+
+		M = []
+
+		N = []
+
 		for i in range(step):
 
 			self.PR_PRM_stat_energy_model_selection1()
@@ -1149,6 +1162,12 @@ class NextReactionMethod(object):
 
 			self.PL_model_config_update3()
 
+			L.append(self.current_PR_PRM_config1)
+
+			M.append(self.current_PRE_config2)
+
+			N.append(self.current_PL_config3)
+
 			prior_PR_PRM_configuration = self.current_PR_PRM_config1
 
 			prior_PRE_configuration = self.current_PRE_config2
@@ -1159,12 +1178,12 @@ class NextReactionMethod(object):
 
 			reaction_index = np.argmin(tau_list)
 
-			dependency_list = self.dep_graph[self.reactions[reaction_index]]
+			dependency_list = self.dep_graph[self.total_reactions[reaction_index]]
 
 			system_time = tau_list[reaction_index] #this will give us the time variable input necessary for get_det_tau calculation
 
 
-			if self.reactions[reaction_index].reactants == self.reactions[reaction_index].products:
+			if self.total_reactions[reaction_index].reactants == self.total_reactions[reaction_index].products:
 				for j in self.total_reactions[reaction_index].reactants:
 					new = j.count - 1
 					j.count = new
@@ -1192,27 +1211,18 @@ class NextReactionMethod(object):
 
 					j.get_det_tau(system_time)
 
-					tau_list[self.reactions.index(j)] = j.tau
+					tau_list[self.total_reactions.index(j)] = j.tau
 
 			cell_volume = (1 + (K0*system_time))*(1e-15)
 
 
 			for j in self.species:
 				j.molar_conc = (j.count)*(1/float(6.02*1e-23))*(1/float(cell_volume))
-				species_dict[j.name].append(j.molar_conc)
+				species_dict[j].append(j.c)
 
 			species_dict['time'].append(system_time)
 
-		return species_dict    
-
-		"""
-		file = open("home\\geurenam\\simoutput.py",'w')
-
-		pickle.dump(species_dict,file)
-
-		file.close()"""
-
-
+		return species_dict,L,M,N   
 
 
 	def multiple_simulation(self,trajectories,step):
