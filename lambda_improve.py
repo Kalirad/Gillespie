@@ -695,12 +695,10 @@ class NextReactionMethod(object):
 								occupancy_decrease.append(k)
 
 			if len(occupancy_increase) > 0:
-				occupancy_species_dict.update({i:(occupancy_increase,occupancy_decrease)})
+				occupancy_species_dict.update({i:(occupancy_increase,list(set(occupancy_decrease)))})
 			else:
 				occupancy_species_dict.update({i:occupancy_decrease})
 		self.occupancy_species1 = occupancy_species_dict
-
-		
 		
 		occupancy_reaction_dict = {}
 		"""
@@ -1054,14 +1052,33 @@ class NextReactionMethod(object):
 		for i in Get:
 			for j in i[1][i[0]]:
 				if type(i[1][i[0]]) == tuple:
-					for k in i[1][i[0]][0]:
-						if k.count != 0:
-							k.count -= 1
-							for l in i[1][i[0]][1]:
-								l.count += 1
-				else:
-					for k in i[1][i[0]]:
-						k.count -= 1
+					if i[1] == self.occupancy_species1:
+						for k in i[1][i[0]][0]:
+							if k.name == 'Closed-PRM':
+								if k.count != 0:
+									k.count -= 1
+									for l in i[1][i[0]][1]:
+										if type(l) == DNA:
+											if l.name == 'PRM':
+												l.count += 1
+										elif l.name == 'RNAP':
+											l.count += 1
+							elif k.name == 'Closed-PR':
+								if k.count != 0:
+									k.count -= 1
+									for l in i[1][i[0]][1]:
+										if type(l) == DNA:
+											if l.name == 'PR':
+												l.count += 1
+										elif l.name == 'RNAP':
+											l.count += 1
+
+					else:
+						for k in i[1][i[0]][0]:
+							if k.count != 0:
+								k.count -= 1
+								for l in i[1][i[0]][1]:
+									l.count += 1
 
 			for j in i[2][i[0]]:
 				j.get_propensity()
