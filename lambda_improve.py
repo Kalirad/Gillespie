@@ -1236,7 +1236,7 @@ class NextReactionMethod(object):
 			cell_volume = (1 + (K0*system_time))*(1e-15)
 
 
-			for j in self.self.species:
+			for j in self.species:
 				j.molar_conc = (j.count)*(1/float(6.02*1e-23))*(1/float(cell_volume))
 				self.species_dict[j].append(j.c)
 
