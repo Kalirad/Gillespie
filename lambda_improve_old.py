@@ -695,10 +695,12 @@ class NextReactionMethod(object):
 								occupancy_decrease.append(k)
 
 			if len(occupancy_increase) > 0:
-				occupancy_species_dict.update({i:(occupancy_increase,list(set(occupancy_decrease)))})
+				occupancy_species_dict.update({i:(occupancy_increase,occupancy_decrease)})
 			else:
 				occupancy_species_dict.update({i:occupancy_decrease})
 		self.occupancy_species1 = occupancy_species_dict
+
+		
 		
 		occupancy_reaction_dict = {}
 		"""
@@ -1037,62 +1039,6 @@ class NextReactionMethod(object):
 		for i in self.occupancy_reaction3[Z]:
 			i.get_propensity()
 
-
-
-	def stat_occup_change(self, tau_list, system_time):
-
-		L = [self.current_PR_PRM_config1, self.current_PRE_config2, self.current_PL_config3]
-
-		M = [self.occupancy_species1, self.occupancy_species2, self.occupancy_species3]
-
-		N = [self.occupancy_reaction1, self.occupancy_reaction2, self.occupancy_reaction3]
-
-		Get = [val for val in zip(L,M,N)]
-
-		for i in Get:
-			for j in i[1][i[0]]:
-				if type(i[1][i[0]]) == tuple:
-					if i[1] == self.occupancy_species1:
-						for k in i[1][i[0]][0]:
-							if k.name == 'Closed-PRM':
-								if k.count != 0:
-									k.count -= 1
-									for l in i[1][i[0]][1]:
-										if type(l) == DNA:
-											if l.name == 'PRM':
-												l.count += 1
-										elif l.name == 'RNAP':
-											l.count += 1
-							elif k.name == 'Closed-PR':
-								if k.count != 0:
-									k.count -= 1
-									for l in i[1][i[0]][1]:
-										if type(l) == DNA:
-											if l.name == 'PR':
-												l.count += 1
-										elif l.name == 'RNAP':
-											l.count += 1
-
-					else:
-						for k in i[1][i[0]][0]:
-							if k.count != 0:
-								k.count -= 1
-								for l in i[1][i[0]][1]:
-									l.count += 1
-
-			for j in i[2][i[0]]:
-				j.get_propensity()
-				for k in range(len(self.reactions)):
-					if j == self.reactions[k]:
-						j.get_det_tau(system_time)
-						tau_list[k] == j.tau
-
-
-
-
-
-
-	"""
 	def stat_occup_change(self, prior_PR_PRM_configuration, prior_PRE_configuration, prior_PL_configuration, tau_list, system_time):
 
 		
@@ -1122,7 +1068,7 @@ class NextReactionMethod(object):
 				for k in range(len(self.reactions)):
 					if j == self.reactions[k]:
 						j.get_det_tau(system_time)
-						tau_list[k] = j.tau"""
+						tau_list[k] = j.tau
 
 
 	def tau_current_occup_update(self, tau_list, system_time):
@@ -1170,12 +1116,12 @@ class NextReactionMethod(object):
 
 		#keys will be species, values will be a list of counts at each iteration of the stochastic algorithm
 
-		self.species_dict = {}
+		species_dict = {}
 		for i in self.species:
 			i.molar()
-			self.species_dict.update({i:[i.c]})
+			species_dict.update({i:[i.c]})
 
-		self.species_dict.update({'time':[system_time]})
+		species_dict.update({'time':[system_time]})
 
 		tau_list = []
 		for m in self.total_reactions:
@@ -1201,14 +1147,14 @@ class NextReactionMethod(object):
 
 		for i in range(step):
 
-			if i > 0:
-				self.stat_occup_change(tau_list, system_time)
-
 			self.PR_PRM_stat_energy_model_selection1()
 
 			self.PRE_stat_energy_model_selection2()
 
 			self.PL_stat_energy_model_selection3()
+
+			if i > 0:
+				self.stat_occup_change(prior_PR_PRM_configuration, prior_PRE_configuration, prior_PL_configuration, tau_list, system_time)
 
 			self.PR_PRM_model_config_update1()
 
@@ -1270,17 +1216,19 @@ class NextReactionMethod(object):
 			cell_volume = (1 + (K0*system_time))*(1e-15)
 
 
-			for j in self.self.species:
+			for j in self.species:
 				j.molar_conc = (j.count)*(1/float(6.02*1e-23))*(1/float(cell_volume))
-				self.species_dict[j].append(j.c)
+				species_dict[j].append(j.c)
 
-			self.species_dict['time'].append(system_time)
+			species_dict['time'].append(system_time)
+
+		return species_dict,L,M,N   
+
 
 	def save_stat(self, directory, file_name):
 		file = open(directory+str(file_name), 'w')
-		pickle.dump(self.species_dict, file)
+		pickle.dump(file, self.species_dict)
 		file.close()
-
 
 
 	def multiple_simulation(self,trajectories,step):
