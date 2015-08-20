@@ -1247,8 +1247,6 @@ class NextReactionMethod(object):
 		pickle.dump(self.species_dict, file)
 		file.close()
 
-
-
 	def multiple_simulation(self,trajectories,step):
 
 		simulation_dict = {}
