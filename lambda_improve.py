@@ -483,9 +483,10 @@ class NextReactionMethod(object):
 									if 0 <= l < (len(Z) - 1):
 										if Z[l].name.split('-')[len(Z[l].name.split('-')) - 1] == Y[k].name.split('-')[len(Y[k].name.split('-')) - 1]:
 											for m in self.species:
-												if m.name == 'N':
-													elong_react.append(Reaction([Y[k],m],[Z[l+1]],(i.nut_sequence[2][1],i.nut_sequence[2][1])))
-													elong_react.append(Reaction([Z[l+1]],[Y[k],m],(i.nut_sequence[2][2],i.nut_sequence[2][2])))
+												if type(m) == Protein:
+													if m.name == 'N':
+														elong_react.append(Reaction([Y[k],m],[Z[l+1]],(i.nut_sequence[2][1],i.nut_sequence[2][1])))
+														elong_react.append(Reaction([Z[l+1]],[Y[k],m],(i.nut_sequence[2][2],i.nut_sequence[2][2])))
 								elong_react.append(Reaction([Y[k]],[Y[k+1]],(i.nut_sequence[2][0],i.nut_sequence[2][0])))
 							elif i.termination_sequence[0] <= k <= i.termination_sequence[1]:
 								for l in self.species:
@@ -528,8 +529,9 @@ class NextReactionMethod(object):
 								for l in self.species:
 									if l.name == 'RNAP':
 										products.append(l)
-									elif l.name == 'N':
-										products.append(l)
+									elif type(l) == Protein:
+										if l.name == 'N':
+											products.append(l)
 									elif type(l) == RNA:
 										for m in l.promoter_affiliation:
 											if m == i.tag_dna:
@@ -595,19 +597,15 @@ class NextReactionMethod(object):
 		for i in self.translation_elong_species.keys():
 			translation_reactions = []
 			Y = self.translation_elong_species[i]
-			for j in range(len(self.translation_elong_species[i])):
+			for j in range(len(Y)):
 				if j == 0:
 					temp = []
 					valor = []
 					for k in self.species:
-						if type(k) == RNA:
-							if k.tag_rna == i.tag_rna:
-								valor.append(k)
-						elif k.name == 'Ribosome':
-							temp.append(k)
-						elif k.name == 'ElongationRibosome':
-							if k.name.split()[2] == i.tag_rna:
-								temp.append(k)
+						if type(k) == Species:
+							if k.name.split('-')[0] == i.name:
+								if k.name.split('-')[1] == 'Ribosome':
+									temp.append(k)
 					valor.append(Y[j])
 					translation_reactions.append(Reaction(temp,valor,(self.k_translation_elong,self.k_translation_elong)))
 					translation_reactions.append(Reaction([Y[j]],[Y[j+1]],(self.k_translation_elong,self.k_translation_elong)))
@@ -1080,6 +1078,10 @@ class NextReactionMethod(object):
 								for l in i[1][i[0]][1]:
 									l.count += 1
 
+				else:
+					for k in i[1][i[0]]:
+						k.count += 1
+
 			for j in i[2][i[0]]:
 				j.get_propensity()
 				for k in range(len(self.reactions)):
@@ -1087,42 +1089,6 @@ class NextReactionMethod(object):
 						j.get_det_tau(system_time)
 						tau_list[k] == j.tau
 
-
-
-
-
-
-	"""
-	def stat_occup_change(self, prior_PR_PRM_configuration, prior_PRE_configuration, prior_PL_configuration, tau_list, system_time):
-
-		
-		L = [self.current_PR_PRM_config1, self.current_PRE_config2, self.current_PL_config3]
-
-		J = [prior_PR_PRM_configuration, prior_PRE_configuration, prior_PL_configuration]
-
-		M = [self.occupancy_species1, self.occupancy_species2, self.occupancy_species3]
-
-		N = [self.occupancy_reaction1, self.occupancy_reaction2, self.occupancy_reaction3]
-
-		Get = [val for val in zip(L,J,M,N) if val[0] != val[1]]
-
-		for i in Get:
-			for j in i[2][i[1]]:
-				if type(i[2][i[1]]) == tuple:
-					for k in i[2][i[1]][0]:
-						if k.count != 0:
-							k.count -= 1
-							for l in i[2][i[1]][1]:
-								l.count += 1
-				else:
-					for k in i[2][i[1]]:
-						k.count += 1
-			for j in i[3][i[1]]:
-				j.get_propensity()
-				for k in range(len(self.reactions)):
-					if j == self.reactions[k]:
-						j.get_det_tau(system_time)
-						tau_list[k] = j.tau"""
 
 
 	def tau_current_occup_update(self, tau_list, system_time):
