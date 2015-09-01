@@ -432,25 +432,45 @@ class NextReactionMethod(object):
 		for i in self.transcription_elong_species.keys():
 			if i.nut_sequence and i.termination_sequence:
 				nut_list = []
+				inter_list = []
 				term_list = []
-				for j in range(i.nut_sequence[0],i.nut_sequence[1]+1):
+				for j in range(i.nut_sequence[0],i.termination_sequence[1]):
 					if j == i.nut_sequence[0]:
 						name = str(i.name) + '-' + 'Nut' + '-' + str(j)
 						nut_list.append(Species(name,count=0))
-					else:
+					elif i.nut_sequence[0] < j < i.nut_sequence[1]+1:
 						name = str(i.name) + '-' + 'N' + '-' + 'Nut' + '-' + str(j)
 						nut_list.append(Species(name,count=0))
-				self.transcription_elong_species[i].append(nut_list)
-
-				term_list.append(nut_list[len(nut_list) - 1])
-				for j in range(i.termination_sequence[0],i.dna_length):
-					if i.termination_sequence[0] <= j <= i.termination_sequence[1]:
-						name = str(i.name) + '-' + 'N' '-' + 'TR' + '-' + str(j)
-						term_list.append(Species(name,count=0))
-					else:
+						if j == i.nut_sequence[1]:
+							inter_list.append(nut_list[-1])
+					elif i.nut_sequence[1]+1 <= j < i.termination_sequence[0]:
 						name = str(i.name) + '-' + 'N' + '-' + str(j)
-						term_list.append(Species(name,count=0))
-				self.transcription_elong_species[i].append(term_list)
+						inter_list.append(Species(name,count=0))
+				self.transcription_elong_species[i].append(nut_list)
+				self.transcription_elong_species[i].append(inter_list)
+
+				if len(inter_list) != 0:
+					term_list.append(inter_list[-1])
+					for j in range(i.termination_sequence[0],i.dna_length):
+						if i.termination_sequence[0] <= j <= i.termination_sequence[1]:
+							name = str(i.name) + '-' + 'N' '-' + 'TR' + '-' + str(j)
+							term_list.append(Species(name,count=0))
+						else:
+							name = str(i.name) + '-' + 'N' + '-' + str(j)
+							term_list.append(Species(name,count=0))
+					self.transcription_elong_species[i].append(term_list)
+
+				else:
+					term_list.append(nut_list[-1])
+					for j in range(i.termination_sequence[0],i.dna_length):
+						if i.termination_sequence[0] <= j <= i.termination_sequence[1]:
+							name = str(i.name) + '-' + 'N' '-' + 'TR' + '-' + str(j)
+							term_list.append(Species(name,count=0))
+						else:
+							name = str(i.name) + '-' + 'N' + '-' + str(j)
+							term_list.append(Species(name,count=0))
+					self.transcription_elong_species[i].append(term_list)
+
 
 	def create_transcription_elongation_reactions(self):
 		"""
@@ -488,6 +508,9 @@ class NextReactionMethod(object):
 														elong_react.append(Reaction([Y[k],m],[Z[l+1]],(i.nut_sequence[2][1],i.nut_sequence[2][1])))
 														elong_react.append(Reaction([Z[l+1]],[Y[k],m],(i.nut_sequence[2][2],i.nut_sequence[2][2])))
 								elong_react.append(Reaction([Y[k]],[Y[k+1]],(i.nut_sequence[2][0],i.nut_sequence[2][0])))
+
+							elif i.nut_sequence[1] < k < i.termination_sequence[0]:
+								elong_react.append(Reaction([Y[k]],[Y[k+1]],(self.k_elong,self.k_elong)))
 							elif i.termination_sequence[0] <= k <= i.termination_sequence[1]:
 								for l in self.species:
 									if l.name == 'RNAP':
@@ -497,7 +520,7 @@ class NextReactionMethod(object):
 													if n == i.tag_dna:
 														if m.pre_termination == True:
 															elong_react.append(Reaction([Y[k]],[Y[k+1]],(i.termination_sequence[2][0],i.termination_sequence[2][0])))
-															elong_react.append(Reaction([Y[k]],[l,m],(i.termination_sequence[2][2],i.termination_sequence[2][2])))							
+															elong_react.append(Reaction([Y[k]],[l,m],(i.termination_sequence[2][2],i.termination_sequence[2][2])))                          
 							elif i.termination_sequence[1] <= k < (i.dna_length - 1):
 								elong_react.append(Reaction([Y[k]],[Y[k+1]],(self.k_elong,self.k_elong)))
 							else:
@@ -518,6 +541,14 @@ class NextReactionMethod(object):
 								elong_nut_react.append(Reaction([Y[k]],[Y[k+1]],(i.nut_sequence[2][3],i.nut_sequence[2][3])))
 						elong_reactions_dict[i].append(elong_nut_react)
 					elif j == 2:
+						if len(Y) != 0:
+							elong_inter_react = []
+							for k in range(len(Y)):
+								if 0 <= k < (len(Y) - 1):
+									elong_inter_react.append(Reaction([Y[k]],[Y[k+1]],(self.k_elong,self.k_elong)))
+							elong_reactions_dict[i].append(elong_inter_react)
+
+					elif j == 3:
 						elong_term_react = []
 						for k in range(len(Y)):
 							if k < ((i.termination_sequence[1] - i.termination_sequence[0]) + 1):
@@ -550,6 +581,7 @@ class NextReactionMethod(object):
 										if type(l) == DNA:
 											if l.tag_dna == i.tag_dna:
 												elong_reactions.append(Reaction([k],[l,Y[j]],(self.k_elong,self.k_elong)))
+												elong_reactions.append(Reaction([Y[j]],[Y[j+1]],(self.k_elong,self.k_elong)))
 					elif 0 < j < (len(Y) - 1):
 						elong_reactions.append(Reaction([Y[j]],[Y[j+1]],(self.k_elong,self.k_elong)))
 					elif j == (len(Y) - 1):
@@ -606,6 +638,9 @@ class NextReactionMethod(object):
 							if k.name.split('-')[0] == i.name:
 								if k.name.split('-')[1] == 'Ribosome':
 									temp.append(k)
+						elif type(k) == RNA:
+							if k.tag_rna == i.tag_rna:
+								valor.append(k)
 					valor.append(Y[j])
 					translation_reactions.append(Reaction(temp,valor,(self.k_translation_elong,self.k_translation_elong)))
 					translation_reactions.append(Reaction([Y[j]],[Y[j+1]],(self.k_translation_elong,self.k_translation_elong)))
@@ -693,7 +728,16 @@ class NextReactionMethod(object):
 								occupancy_decrease.append(k)
 
 			if len(occupancy_increase) > 0:
-				occupancy_species_dict.update({i:(occupancy_increase,list(set(occupancy_decrease)))})
+				hit = 0
+				for j in config[i]:
+					if j == 'RNAP':
+						hit += 1
+
+				if hit > 1:
+					occupancy_species_dict.update({i:(occupancy_increase,list(set(occupancy_decrease)))})
+				elif hit == 1:
+					occupancy_species_dict.update({i:(occupancy_increase,occupancy_decrease)})
+
 			else:
 				occupancy_species_dict.update({i:occupancy_decrease})
 		self.occupancy_species1 = occupancy_species_dict
@@ -760,7 +804,14 @@ class NextReactionMethod(object):
 						if k.name == 'R':
 							for l in self.species:
 								if l.name == 'RNAP': #when the volume function is finished, change count to concentration
-									state_energy = (np.exp(((-1)*float(i[-1]))/float(boltzman*310.15))*(k.molar_conc**R_power)*(j.molar_conc**C_power)*(l.molar_conc**RNAP_power))
+									if j.count < C_power:
+										state_energy = 0
+									elif k.count < R_power:
+										state_energy = 0
+									elif l.count < RNAP_power:
+										state_energy = 0
+									else:
+										state_energy = (np.exp(((-1)*float(i[-1]))/float(boltzman*310.15))*(k.molar_conc**R_power)*(j.molar_conc**C_power)*(l.molar_conc**RNAP_power))
 			state_energy_list.append(state_energy)
 
 
@@ -799,7 +850,13 @@ class NextReactionMethod(object):
 			for i in self.occupancy_species1[Z][0]:
 				i.count += 1
 			for i in self.occupancy_species1[Z][1]:
-				i.count -= 1
+				if type(i) == Species:
+					if i.name == 'RNAP':
+						i.count -= len(self.occupancy_species1[Z][0])
+					else:
+						i.count -= 1
+				else:
+					i.count -= 1
 		else:
 			for i in self.occupancy_species1[Z]:
 				i.count -= 1
@@ -879,7 +936,12 @@ class NextReactionMethod(object):
 					if j.name == 'CII':
 						for k in self.species:
 							if k.name == 'RNAP':
-								state_energy = (np.exp(((-1)*float(i[-1]))/float(boltzman*310.15))*(j.molar_conc**CII_power)*(k.molar_conc**RNAP_power))
+								if j.count < CII_power:
+									state_energy = 0
+								elif k.count < RNAP_power:
+									state_energy = 0
+								else:
+									state_energy = (np.exp(((-1)*float(i[-1]))/float(boltzman*310.15))*(j.molar_conc**CII_power)*(k.molar_conc**RNAP_power))
 			state_energy_list.append(state_energy)
 
 
@@ -916,7 +978,6 @@ class NextReactionMethod(object):
 
 		for i in self.occupancy_reaction2[Z]:
 			i.get_propensity()
-
 
 	def PL_model_dependencies3(self):
 		config3 = np.array([[0,0,0.0],['C',0,-10.9],[0,'C',-12.1],['R',0,-11.7],[0,'R',-10.1],[0,'RNAP',-12.5],
@@ -996,7 +1057,14 @@ class NextReactionMethod(object):
 						if k.name == 'C':
 							for l in self.species:
 								if l.name == 'RNAP':
-									state_energy = (np.exp(((-1)*float(i[-1]))/float(boltzman*310.15))*(k.molar_conc**C_power)*(j.molar_conc**R_power)*(l.molar_conc**RNAP_power))
+									if j.count < R_power:
+										state_energy = 0
+									elif k.count < C_power:
+										state_energy = 0
+									elif l.count < RNAP_power:
+										state_energy = 0
+									else:
+										state_energy = (np.exp(((-1)*float(i[-1]))/float(boltzman*310.15))*(k.molar_conc**C_power)*(j.molar_conc**R_power)*(l.molar_conc**RNAP_power))
 			state_energy_list.append(state_energy)
 		
 		for i in range(len(config3)):
@@ -1020,7 +1088,7 @@ class NextReactionMethod(object):
 		self.current_PL_config3 = X
 
 	def PL_model_config_update3(self):
-
+ 
 		Z = self.current_PL_config3
 
 		if type(self.occupancy_species3[Z]) == tuple:
@@ -1035,8 +1103,6 @@ class NextReactionMethod(object):
 		for i in self.occupancy_reaction3[Z]:
 			i.get_propensity()
 
-
-
 	def stat_occup_change(self, tau_list, system_time):
 
 		L = [self.current_PR_PRM_config1, self.current_PRE_config2, self.current_PL_config3]
@@ -1048,9 +1114,9 @@ class NextReactionMethod(object):
 		Get = [val for val in zip(L,M,N)]
 
 		for i in Get:
-			for j in i[1][i[0]]:
-				if type(i[1][i[0]]) == tuple:
-					if i[1] == self.occupancy_species1:
+			if type(i[1][i[0]]) == tuple:
+				if len(i[1][i[0]][0]) > 1:
+					for j in i[1][i[0]]:
 						for k in i[1][i[0]][0]:
 							if k.name == 'Closed-PRM':
 								if k.count != 0:
@@ -1070,25 +1136,62 @@ class NextReactionMethod(object):
 												l.count += 1
 										elif l.name == 'RNAP':
 											l.count += 1
-
-					else:
-						for k in i[1][i[0]][0]:
-							if k.count != 0:
-								k.count -= 1
-								for l in i[1][i[0]][1]:
-									l.count += 1
-
 				else:
-					for k in i[1][i[0]]:
-						k.count += 1
+					for k in i[1][i[0]][0]:
+						if k.count != 0:
+							k.count -= 1
+							for l in i[1][i[0]][1]:
+								l.count += 1
+						else:
+							for l in i[1][i[0]][1]:
+								if type(l) == Species:
+									if l.name != 'RNAP':
+										l.count += 1
+			else:
+				for k in i[1][i[0]]:
+					k.count += 1
 
 			for j in i[2][i[0]]:
 				j.get_propensity()
 				for k in range(len(self.reactions)):
 					if j == self.reactions[k]:
 						j.get_det_tau(system_time)
-						tau_list[k] == j.tau
+						tau_list[k] = j.tau
 
+	def promoter_occupancy_stat(self, cell_volume):
+
+		X = ['config1','config2','config3']
+
+		Y = np.random.choice([1,2,3],3,replace=False)
+
+		V = [val for val in zip(Y,X)]
+
+		hit = 1
+		master_list = []
+		while hit <= 3:
+			for i in V:
+				if i[0] == hit:
+					master_list.append(i[1])
+					hit += 1
+
+		for i in master_list:
+			if i == 'config1':
+				self.PR_PRM_stat_energy_model_selection1()
+				self.PR_PRM_model_config_update1()
+				for j in self.species:
+					j.molar_conc = (j.count)*(1/float(6.02*1e-23))*(1/float(cell_volume))
+
+			elif i == 'config2':
+				self.PRE_stat_energy_model_selection2()
+				self.PRE_model_config_update2()
+				for j in self.species:
+					j.molar_conc = (j.count)*(1/float(6.02*1e-23))*(1/float(cell_volume))
+
+			elif i == 'config3':
+				self.PL_stat_energy_model_selection3()
+				self.PL_model_config_update3()
+				for j in self.species:
+					j.molar_conc = (j.count)*(1/float(6.02*1e-23))*(1/float(cell_volume))
 
 
 	def tau_current_occup_update(self, tau_list, system_time):
@@ -1116,7 +1219,7 @@ class NextReactionMethod(object):
 
 
 
-	def NRM_execution(self, step):
+	def NRM_execution(self, step, leap):
 
 		self.create_transcription_elongation_species()
 
@@ -1128,7 +1231,11 @@ class NextReactionMethod(object):
 
 		self.update_reaction_list()
 
+		k = 0
+
 		system_time = 0
+
+		cell_volume = 1e-15
 
 		K0 = (4.76)*(1e-18)
 
@@ -1142,6 +1249,7 @@ class NextReactionMethod(object):
 			self.species_dict.update({i:[i.c]})
 
 		self.species_dict.update({'time':[system_time]})
+		self.species_dict.update({'cell_vol':[cell_volume]})
 
 		tau_list = []
 		for m in self.total_reactions:
@@ -1159,40 +1267,16 @@ class NextReactionMethod(object):
 		self.PL_model_dependencies3()
 
 
-		L = []
-
-		M = []
-
-		N = []
-
 		for i in range(step):
 
 			if i > 0:
 				self.stat_occup_change(tau_list, system_time)
+				
+				for j in self.species:
+					j.molar_conc = (j.count)*(1/float(6.02*1e-23))*(1/float(cell_volume))
+			
 
-			self.PR_PRM_stat_energy_model_selection1()
-
-			self.PRE_stat_energy_model_selection2()
-
-			self.PL_stat_energy_model_selection3()
-
-			self.PR_PRM_model_config_update1()
-
-			self.PRE_model_config_update2()
-
-			self.PL_model_config_update3()
-
-			L.append(self.current_PR_PRM_config1)
-
-			M.append(self.current_PRE_config2)
-
-			N.append(self.current_PL_config3)
-
-			prior_PR_PRM_configuration = self.current_PR_PRM_config1
-
-			prior_PRE_configuration = self.current_PRE_config2
-
-			prior_PL_configuration = self.current_PL_config3
+			self.promoter_occupancy_stat(cell_volume)
 
 			self.tau_current_occup_update(tau_list, system_time)
 
@@ -1235,17 +1319,17 @@ class NextReactionMethod(object):
 
 			cell_volume = (1 + (K0*system_time))*(1e-15)
 
-
 			for j in self.species:
 				j.molar_conc = (j.count)*(1/float(6.02*1e-23))*(1/float(cell_volume))
-				self.species_dict[j].append(j.c)
+				
 
-			self.species_dict['time'].append(system_time)
+			if k == i:
+				for j in self.species:
+					self.species_dict[j].append(j.c)
+				self.species_dict['time'].append(system_time)
+				self.species_dict['cell_vol'].append(cell_volume)
+				k += leap
 
-	def save_stat(self, directory, file_name):
-		file = open(directory+str(file_name), 'w')
-		pickle.dump(self.species_dict, file)
-		file.close()
 
 	def multiple_simulation(self,trajectories,step):
 
