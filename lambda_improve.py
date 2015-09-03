@@ -1237,7 +1237,7 @@ class NextReactionMethod(object):
 
 		cell_volume = 1e-15
 
-		K0 = (4.76)*(1e-18)
+		K0 = 1/float(2100)
 
 		#First Step, create a species dictionary from the species list
 
@@ -1268,6 +1268,9 @@ class NextReactionMethod(object):
 
 
 		for i in range(step):
+
+			if system_time > 2100:
+				break
 
 			if i > 0:
 				self.stat_occup_change(tau_list, system_time)
@@ -1331,18 +1334,25 @@ class NextReactionMethod(object):
 				k += leap
 
 
-	def multiple_simulation(self,trajectories,step):
+	def multiple_simulation(self,trajectories,step,leap):
 
-		simulation_dict = {}
+		"""
+		trajectories : # of runs you want to accomplish
 
-		self.create_species_list()
+		step : # of reactions to be executed in a given runs
+
+		leap : Determines the number of data points to be saved for a single runs
+
+		Remember to pickle the self.simulation_dict 
+		"""
+
+		self.simulation_dict = {}
 
 		for i in range(trajectories):
 
-			shadow_reaction = copy.deepcopy(self)
+			shadow = copy.deepcopy(self)
 
-			Y = shadow_reaction.NRM_execution(step)
+			shadow.NRM_execution(step,leap)
 
-			simulation_dict.update({i:Y})
+			self.simulation_dict.update({i:shadow.species_dict})
 
-		self.stats = simulation_dict
