@@ -41,7 +41,7 @@ class Species(object):
 		else:
 			self.count = 0
 
-	
+	"""
 	@property
 	def count(self):
 		return self.c
@@ -50,8 +50,12 @@ class Species(object):
 	def count(self, count):
 		self.c = count
 
+	"""
+
 	def molar(self):
 		self.molar_conc = (self.count/float(6.02*1e23) * (1/float(1e-15)))
+
+	
 
 
 class DNA(Species):
@@ -248,7 +252,7 @@ class Reaction(object):
 			if len(multiplicity_dict[i]) > 1:
 				value = 1
 				for j in range(len(multiplicity_dict[i])):
-					value *= multiplicity_dict[i][j].c - j 
+					value *= multiplicity_dict[i][j].count - j 
 
 				extend = [j for j in range(len(multiplicity_dict[i])) if j]
 				extend.append(len(multiplicity_dict[i]))
@@ -260,7 +264,7 @@ class Reaction(object):
 				penultimate.append(intermediate)
 
 			else:
-				penultimate.append(multiplicity_dict[i][len(multiplicity_dict[i]) - 1].c)
+				penultimate.append(multiplicity_dict[i][len(multiplicity_dict[i]) - 1].count)
 
 		""" 
 		At the end of the for loop, the penultimate list will contain values pertaining to the adjusted stoichiometic count for  
@@ -1279,7 +1283,7 @@ class NextReactionMethod(object):
 					i.c = int(np.round((500*1e-9)*(6.02*1e23)*cell_volume))
 
 
-	def NRM_execution(self, step, leap):
+	def NRM_execution(self, step, leap, end):
 
 		self.create_transcription_elongation_species()
 
@@ -1297,7 +1301,7 @@ class NextReactionMethod(object):
 
 		cell_volume = 1e-15
 
-		K0 = 1/float(2100)
+		K0 = 1/float(end)
 
 		#First Step, create a species dictionary from the species list
 
@@ -1308,7 +1312,7 @@ class NextReactionMethod(object):
 		self.species_dict = {}
 		for i in self.species:
 			i.molar()
-			self.species_dict.update({i:[i.c]})
+			self.species_dict.update({i:[i.count]})
 		self.species_dict.update({'time':[system_time]})
 		self.species_dict.update({'cell_vol':[cell_volume]})
 
@@ -1316,14 +1320,14 @@ class NextReactionMethod(object):
 		for i in self.species:
 			if type(i) == Protein:
 				if i.name == 'Cro':
-					self.plot_dict.update({i.name:[i.c]})
+					self.plot_dict.update({i.name:[i.count]})
 				elif i.name == 'CI':
-					self.plot_dict.update({i.name:[i.c]})
+					self.plot_dict.update({i.name:[i.count]})
 			elif type(i) == Species:
 				if i.name == 'C':
-					self.plot_dict.update({i.name:[i.c]})
+					self.plot_dict.update({i.name:[i.count]})
 				elif i.name == 'R':
-					self.plot_dict.update({i.name:[i.c]})
+					self.plot_dict.update({i.name:[i.count]})
 		self.plot_dict.update({'time':[system_time]})
 		self.plot_dict.update({'cell_vol':[cell_volume]})
 
@@ -1345,17 +1349,17 @@ class NextReactionMethod(object):
 
 		for i in range(step):
 
-			if system_time >= k:
+			while system_time >= k:
 				Z = self.species_dict['time']
 				temp = {}
 				for j in range(len(Z)):
 					if Z[j] <= k:
 						diff = k - Z[j]
 						temp.update({j:diff})
-				V = temp.values()
-				N = np.min(V)
+				diff_values = temp.values()
+				min_diff = np.min(diff_values)
 				for j in temp.keys():
-					if temp[j] == N:
+					if temp[j] == min_diff:
 						update_index = j
 
 				for j in self.species_dict.keys():
@@ -1375,14 +1379,14 @@ class NextReactionMethod(object):
 
 				k += leap
 
-			if system_time >= float(2100):
-				"""j = self.total_reactions[reaction_index]
-				for k in j.reactants:
-					print k.name,type(k)
-				for k in j.products:
-					print k.name,type(k)
-				print j.prop
-				print j.tau, j.tau_old"""
+				if k >= float(end):
+					break
+
+			if system_time >= float(end): #ensures that lists are at uniform lenghts based on final time point (end) and interval values (leap) 
+				key = [val for val in self.plot_dict.keys() if len(self.plot_dict[val]) != (end/float(leap) + 1)]
+				if len(key) != 0:
+					for j in key:
+						self.plot_dict[j].append(self.plot_dict[j][-1])
 				break
 
 			if i > 0:
@@ -1399,6 +1403,9 @@ class NextReactionMethod(object):
 			reaction_index = np.argmin(tau_list)
 
 			dependency_list = self.dep_graph[self.total_reactions[reaction_index]]
+
+			if i == 0:
+				self.first = (self.total_reactions[reaction_index],self.total_reactions[reaction_index].prop,system_time,self.total_reactions[reaction_index].tau)
 
 			system_time = tau_list[reaction_index] #this will give us the time variable input necessary for get_det_tau calculation
 
@@ -1437,7 +1444,7 @@ class NextReactionMethod(object):
 
 			for j in self.species:
 				j.molar_conc = (j.count)*(1/float(6.02*1e-23))*(1/float(cell_volume))
-				self.species_dict[j].append(j.c)
+				self.species_dict[j].append(j.count)
 			self.species_dict['time'].append(system_time)
 			self.species_dict['cell_vol'].append(cell_volume)
 
