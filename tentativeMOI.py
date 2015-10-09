@@ -99,11 +99,12 @@ class DNA(Species):
 		if termination_sequence:
 			assert type(termination_sequence) == list
 		Species.__init__(self, name, count=False)
+		self.count = count
 		self.tag_dna = tag_dna
 		self.dna_length = dna_length
-		self.count = count
 		self.nut_sequence = nut_sequence
 		self.termination_sequence = termination_sequence
+
 
 	""" 
 	Method allows for inquiry into the promoter state of each copy number to see if free promoter (bound) of not free (unbound). All copy number of promoter initialized as unbound"""
@@ -152,11 +153,11 @@ class RNA(Species):
 		assert type(pre_termination) == bool
 			
 		Species.__init__(self, name, count=False)
+		self.count = count
 		self.tag_rna = tag_rna
 		self.rna_length = rna_length
 		self.promoter_affiliation = promoter_affiliation
 		self.pre_termination = pre_termination
-		self.count = count
 		
 
 class Protein(Species):
@@ -186,6 +187,7 @@ class Protein(Species):
 		"""
 		assert type(tag_rna) == int
 		Species.__init__(self, name, count=False)
+		self.count = count
 		self.tag_rna = tag_rna
 
 class IsomerComplex(Species):
@@ -211,7 +213,8 @@ class IsomerComplex(Species):
 		count : int
 			defaults to zero
 		 """
-		self.name  = name
+		Species.__init__(self, name, count=False)
+		self.count = count
 		self.promoter_state = promoter_state
 		self.tag_complex = tag_complex
 		self.dna = dna
@@ -767,6 +770,13 @@ class NextReactionMethod(object):
 
 	def PR_PRM_model_dependencies1(self):
 		#Use the positions of RNAP on the list(either position 1 or 3 - zero based indexing - to determine which reactions are affected
+		
+		for i in self.species:
+			if type(i) == DNA:
+				if i.name == 'PRM' or i.name == 'PR':
+					copy_number = i.count
+					break
+
 		config = np.array([[1, 0, 0, 0, 0.0], [2, 0, 0, 'R', -11.7], [3, 0, 'R', 0, -10.1], [4, 'R', 0, 0, -10.1], [5, 0, 0, 'C', -10.8],
 		[6, 0, 'C', 0, -10.8], [7, 'C', 0, 0, -12.1], [8,'RNAP', 0, 0, -11.5], [9, 0, 0, 'RNAP', -12.5], 
 		[10, 0, 'R', 'R', -23,7], [11, 'R',  0, 'R', -21.8], [12, 'R', 'R', 0, -22.2], [13, 0, 'C', 'C', -21.6],
@@ -825,7 +835,8 @@ class NextReactionMethod(object):
 						if type(config[j][k]) != float:
 							for l in self.species:
 								if type(l) == Species:
-									occupancy_decrease.append(l)
+									if l.name == config[j][k]:
+										occupancy_decrease.append(l)
 
 				if len(occupancy_increase) > 0: #This allows us to distinguish between multiple promoter activation, promoter activation, and no promoter activation
 					hit = 0
@@ -835,7 +846,7 @@ class NextReactionMethod(object):
 					if hit > 1:
 						single_dict.update({j:(occupancy_increase,list(set(occupancy_decrease)))})
 					else:
-						single_dict.update({j:(occupancy_increease,occupancy_decrease)})
+						single_dict.update({j:(occupancy_increase,occupancy_decrease)})
 				else:
 					single_dict.update({j:occupancy_decrease})
 			occupancy_species_dict.update({i:single_dict})
@@ -848,7 +859,7 @@ class NextReactionMethod(object):
 		There are no Gillespie reactions explicitly associated with RNApolymerase (RNAP) or DNA objects(promoters).
 		These are 'implicit' reactions as they are alluded to in the stat_thermodynamic model for operator/promoter binding.
 		"""
-		X = copy.deepcopy(occupancy_species_dict)
+		X = copy.deepcopy(self.occupancy_species1)
 
 		occupancy_reaction_dict = {}
 
@@ -856,18 +867,20 @@ class NextReactionMethod(object):
 			temp_dict = {}
 			for j in X[i].keys():
 				reaction_list = []
-				if X[i][j] == tuple:
+				if type(X[i][j]) == tuple:
 					final_list = X[i][j][0]
 					for k in range(len(X[i][j])):
 						if k != 0:
 							final_list += X[i][j][k]
 					reaction_occupancy_list = list(set(final_list))
-					for k in self.reactions:
-						for l in k.reactants:
-							for m in reaction_occupancy_list:
-								if l == m:
-									reaction_list.append(k)
-				temp_dict.append({j:reaction_list})
+				else:
+					reaction_occupancy_list = list(set(X[i][j]))
+				for k in reaction_occupancy_list:
+					for l in self.reactions:
+						for m in l.reactants:
+							if k.name == m.name:
+								reaction_list.append(l)
+				temp_dict.update({j:reaction_list})
 			occupancy_reaction_dict.update({i:temp_dict})
 		self.occupancy_reaction1 = occupancy_reaction_dict
 
@@ -950,7 +963,7 @@ class NextReactionMethod(object):
 
 			
 		Z = self.current_PR_PRM_config1
-		
+
 		X = self.occupancy_species1[copy_number]
 
 		Y = self.occupancy_reaction1[copy_number]
@@ -965,7 +978,7 @@ class NextReactionMethod(object):
 					else:
 						i.count -= 1
 				elif type(i) == DNA:
-					if i.name == 'PR' or 'PRE':
+					if i.name == 'PR' or i.name == 'PRM':
 						i.count -= 1
 						for j in i.transcript_state.keys():
 							if j == copy_number:
@@ -992,6 +1005,13 @@ class NextReactionMethod(object):
 
 	def PRE_model_dependencies2(self):
 		"This is the statistical binding model for the PRE promoter"
+		
+		for i in self.species:
+			if type(i) == DNA:
+				if i.name == 'PRE':
+					copy_number = i.count
+					break
+
 		config2 = np.array([[0,0,0.0],[0,'RNAP',-9.9],['CII',0,-9.7],['CII','RNAP',-21.5]])
 
 		occupancy_species_dict2 = {}
@@ -999,7 +1019,7 @@ class NextReactionMethod(object):
 		PRE_isomer_const = []
 
 		count = 0
-		for i in copy_number:
+		for i in range(copy_number):
 			temp_dict = {}
 			for j in range(len(config2)):
 				occupancy_decrease = []
@@ -1019,7 +1039,7 @@ class NextReactionMethod(object):
 										if l.tag_complex == i:
 											occupancy_increase.append(l)
 						if count == i:
-							for l in range(len(config[2][j])):
+							for l in config2[j]:
 								if l == 'CII':
 									PRE_isomer_const.append(j)
 
@@ -1028,7 +1048,7 @@ class NextReactionMethod(object):
 							if type(l) == Protein:
 								if l.name == config2[j][k]:
 									occupancy_decrease.append(l)
-				if len(species_increase) > 0:
+				if len(occupancy_increase) > 0:
 					temp_dict.update({j:(occupancy_increase,occupancy_decrease)})
 				else:
 					temp_dict.update({j:occupancy_decrease})
@@ -1054,7 +1074,7 @@ class NextReactionMethod(object):
 				for k in species:
 					for l in self.reactions:
 						for m in l.reactants:
-							if k == m:
+							if k.name == m.name:
 								reaction_occupancy.append(l)
 				temp_react.update({j:reaction_occupancy})
 			reaction_dict.update({i:temp_react})
@@ -1149,10 +1169,17 @@ class NextReactionMethod(object):
 				i.get_propensity(const=True)
 
 	def PL_model_dependencies3(self):
+
+		for i in self.species:
+			if type(i) == DNA:
+				if i.name == 'PL':
+					copy_number = i.count
+					break
+
 		config3 = np.array([[0,0,0.0],['C',0,-10.9],[0,'C',-12.1],['R',0,-11.7],[0,'R',-10.1],[0,'RNAP',-12.5],['C','C',-22.9],['C','R',-20.9],['R','C',-22.8],['R','R',-23.7]])
 
 		occupancy_species3_dict = {}
-		for i in copy_nummber:
+		for i in range(copy_number):
 			temp_dict = {}
 			for j in range(len(config3)):
 				occupancy_increase = []
@@ -1204,11 +1231,11 @@ class NextReactionMethod(object):
 				for k in species:
 					for l in self.reactions:
 						for m in l.reactants:
-							if k == m:
+							if k.name == m.name:
 								reaction_list.append(l)
 				reaction_dict.update({j:reaction_list})
 			reaction_occupancy_dict.update({i:reaction_dict})
-		self.occupancy_reaction3 = reaction_occupacy_dict
+		self.occupancy_reaction3 = reaction_occupancy_dict
 
 	def PL_stat_energy_model_selection3(self, copy_number):
 		config3 = np.array([[0,0,0.0],['C',0,-10.9],[0,'C',-12.1],['R',0,-11.7],[0,'R',-10.1],[0,'RNAP',-12.5],['C','C',-22.9],['C','R',-20.9],['R','C',-22.8],['R','R',-23.7]])
@@ -1280,7 +1307,7 @@ class NextReactionMethod(object):
 			for j in X[Z][1]:
 				if type(j) == DNA:
 					if j.name == 'PL':
-						j.count =- 1
+						j.count -= 1
 						for k in j.transcript_state.keys():
 							if k == copy_number:
 								j.transcript_state.update({k:'bound'})
@@ -1290,33 +1317,35 @@ class NextReactionMethod(object):
 			for j in X[Z]:
 				j.count -= 1
 
-		for i in self.occupancy_reaction3[Z]:
+		for i in Y[Z]:
 			i.get_propensity()
 
 	def promoter_occupancy_stat(self, cell_volume):
-		bound_elem = {'PR_PRM':[], 'PRE':[], 'PL':[]}
 
+		bound_elem = {}
 		m_dict = {}
 
 		hit = 0
 		for i in self.species:
 			if type(i) == DNA:
-				name == i.name
-				G = i.count
-				temp = []
-				for j in range(G):
-					temp.append(j)
-				np.shuffle(temp)
-				if name == 'PR or PRM':
+				if i.name == 'PR' or i.name == 'PRM':
 					if hit == 0:
-						m_dict.update({'PR_PRM':temp})
+						shuffle = range(i.count)
+						np.random.shuffle(shuffle)
+						m_dict.update({'PR_PRM':shuffle})
+						bound_elem.update({'PR_PRM':np.zeros(i.count)})
 						hit += 1
 				else:
-					m_dict.update({name:temp})
+					shuffle = range(i.count)
+					np.random.shuffle(shuffle)
+					m_dict.update({i.name:shuffle})
+					bound_elem.update({i.name:np.zeros(i.count)})
+
 
 		while np.sum(m_dict.values()) != 0:
+
 			F = [1,2,3]
-			np.shuffle(F)
+			np.random.shuffle(F)
 			for i in F:
 				if i == 1:
 					if len(m_dict['PR_PRM']) != 0:
@@ -1325,9 +1354,9 @@ class NextReactionMethod(object):
 						self.PR_PRM_model_config_update1(val)
 						for j in self.species:
 							j.molar_conc = (j.count)*(1/float(6.02*1e-23))*(1/float(cell_volume))
-						bound_elem['PR_PRM'].append(self.current_PR_PRM_config1)
+						bound_elem['PR_PRM'][val] = self.current_PR_PRM_config1
 						temp = []
-						for j in range(m_dict['PR_PRM']):
+						for j in range(len(m_dict['PR_PRM'])):
 							if j != 0:
 								temp.append(m_dict['PR_PRM'][j])
 						m_dict['PR_PRM'] = temp
@@ -1338,9 +1367,9 @@ class NextReactionMethod(object):
 						self.PRE_model_config_update2(val)
 						for j in self.species:
 							j.molar_conc = (j.count)*(1/float(6.02*1e-23))*(1/float(cell_volume))
-						bound_elem['PRE'].append(self.current_PRE_config2)
+						bound_elem['PRE'][val] = self.current_PRE_config2
 						temp = []
-						for j in range(m_dict['PRE']):
+						for j in range(len(m_dict['PRE'])):
 							if j != 0:
 								temp.append(m_dict['PRE'][j])
 						m_dict['PRE'] = temp
@@ -1351,13 +1380,19 @@ class NextReactionMethod(object):
 						self.PL_model_config_update3(val)
 						for j in self.species:
 							j.molar_conc = (j.count)*(1/float(6.02*1e-23))*(1/float(cell_volume))
-						bound_elem['PL'].append(self.current_PL_config3)
+						bound_elem['PL'][val] = self.current_PL_config3
 						temp = []
 						for j in range(len(m_dict['PL'])):
 							if j != 0:
 								temp.append(m_dict['PL'][j])
 						m_dict['PL'] = temp
-		self.occup_elem = bound_elem
+		
+		self.occup_elem = {}
+		for i in bound_elem.keys():
+			aux = []
+			for j in bound_elem[i]:
+				aux.append(int(j))
+			self.occup_elem.update({i:aux})
 
 
 	def stat_occup_change_species(self):
@@ -1378,46 +1413,59 @@ class NextReactionMethod(object):
 			X = self.isomer_state
 			for i in self.occup_elem.keys():
 				Y = self.occup_elem[i]
-				V = [val for val in range(len(self.occup_elem[i])) if val != X[1]]
-				if i == X[0]:
-					for j in M:
-						if j[0] == i:
+				for j in M:
+					if j[0] == i:
+						if j[0] == X[0]:
+							V = [val for val in range(len(self.occup_elem[i])) if val != X[1]]
 							for k in V:
 								Z = j[1][k][Y[k]]
 								if type(Z) == tuple:
 									for l in Z[0]:
 										l.count -= 1
 									for l in Z[1]:
-										l.count += 1
+										if type(l) == DNA:
+											l.count += 1
+											l.transcript_state.update({k:'unbound'})
+										else:
+											if l.name == 'RNAP':
+												l.count += len(Z[0])
+											else:
+												l.count += 1
 								else:
 									for l in Z:
 										l.count += 1
-					N = j[1][X[1]][Y[X[1]]]  #This is guaranteed to be a tuple as it is configuration update affected by the gillespie reaction
-					if len(N[0]) > 1:
-						for k in N[0]:
-							if k.dna != i:
-								k.count -= 1
-						for k in N[1]:
-							if type(k) == DNA:
-								if k.name != i:
-									k.count += 1
-							elif type(k) == Species:
-								k.count += 1
-					else:
-						for j in N[1]:
-							if type(j) == Species:
-								if j.name != 'RNAP':
-									j.count += 1
-				else:
-					for j in M:
-						if j[0] == i:
+							N = j[1][X[1]][Y[X[1]]]  #This is guaranteed to be a tuple as it is configuration update affected by the gillespie reaction
+							if len(N[0]) > 1:
+								for k in N[0]:
+									if k.dna != i:
+										k.count -= 1
+								for k in N[1]:
+									if type(k) == DNA:
+										if k.name != i:
+											k.count += 1
+											k.transcript_state.update({X[1]:'unbound'})
+									else:
+										k.count += 1
+							else:
+								for j in N[1]:
+									if type(j) == Species:
+										if j.name != 'RNAP':
+											j.count += 1
+									elif type(j) == Protein:
+										j.count += 1
+						else:
+							V = [val for val in range(len(self.occup_elem[i]))]
 							for k in V:
 								Z = j[1][k][Y[k]]
 								if type(Z) == tuple:
 									for l in Z[0]:
 										l.count -= 1
 									for l in Z[1]:
-										l.count += 1
+										if type(l) == DNA:
+											l.count += 1
+											l.transcript_state.update({k:'unbound'})
+										else:
+											l.count += 1
 								else:
 									for l in Z:
 										l.count += 1
@@ -1431,8 +1479,17 @@ class NextReactionMethod(object):
 							if type(Z) == tuple:
 								for l in Z[0]:
 									l.count -= 1
-								for l in Z[0]:
-									l.count += 1
+								for l in Z[1]:
+									if type(l) == DNA:
+										l.count += 1
+										l.transcript_state.update({k:'unbound'})
+									elif type(l) == Species:
+										if l.name == 'RNAP':
+											l.count += len(Z[0])
+										else:
+											l.count += 1
+									else:
+										l.count += 1
 							else:
 								for l in Z:
 									l.count += 1
@@ -1459,10 +1516,10 @@ class NextReactionMethod(object):
 
 
 	def check_isomerization(self,reaction_index):
-		X = self.total_reactions[reaction_index] # X should be a reaction object
+		X = self.reactions[reaction_index] # X should be a reaction object # this should be total_reactions. self.reactions only for testing purposses
 		if type(X.reactants[0]) == IsomerComplex:
 			if type(X.products[0]) == IsomerComplex:
-				if X.reactants[0].dna == 'PR' or 'PRE': # This reactant list is guaranteed to have one element in reactant/product lists
+				if X.reactants[0].dna == 'PR' or X.reactants[0].dna == 'PRM': # This reactant list is guaranteed to have one element in reactant/product lists
 					self.isomer_state = ('PR_PRM',X.reactants[0].tag_complex)
 				else:
 					self.isomer_state = (X.reactants[0].dna, X.reactants[0].tag_complex)
