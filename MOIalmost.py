@@ -1517,20 +1517,20 @@ class NextReactionMethod(object):
 			self.RNAP_elong_check += 1
 
 
-	def check_transcription_elongation_complete(self,reaction_index):
-		R = self.reactions[reaction_index]
+	def check_transcription_elongation_complete(self, reaction_index):
+		R = self.total_reactions[reaction_index]
 		V = [val for val in R.products if val.name == 'RNAP']
 		if len(V) == 1:
 			self.RNAP_elong_check -= 1
 
-	def check_translation_elongation_initiation(self,reaction_index):
-		R = self.reactions[reaction_index]
+	def check_translation_elongation_initiation(self, reaction_index):
+		R = self.total_reactions[reaction_index]
 		V = [val for val in R.reactants if len(val.name.split('-')) == 2 and val.name.split('-')[1] == 'Ribosome']
 		if len(V) == 1:
 			self.Ribosome_elong_check += 1
 
-	def check_translation_elongation_complete(self,reaction_index):
-		R = self.reactions[reaction_index]
+	def check_translation_elongation_complete(self, reaction_index):
+		R = self.total_reactions[reaction_index]
 		V = [val for val in R.products if val.name == 'Ribosome']
 		if len(V) == 1:
 			self.Ribosome_elong_check -= 1
@@ -1555,27 +1555,28 @@ class NextReactionMethod(object):
 
 	def increment_calc(self, cell_volume):
 	
-		for i in self.species::
+		for i in self.species:
 			if type(i) == Species:
 				if i.name == 'RNAP':
 					num = int(np.round((30*1e-9)*(6.02*1e23)*cell_volume))
 					count = 0
+					hit = 0
 					V_open = [val for val in self.species if val.name.split('-')[0] == 'Open' and val.count != 0]
 					V_closed = [val for val in self.species if val.name.split('-')[0] == 'Closed' and val.count != 0]
 					elong = self.RNAP_elong_check
 					for j in V_open:
 						count += j.count
 					for j in V_closed:
-						count += j.count
-					assert num >= ((i.count + count + elong))
-					if num > (i.count + count + elong):
-						value = num - (i.count + count + elong)
+						hit += j.count
+					assert num >= (i.count + count + hit + elong)
+					if num > (i.count + count + hit + elong):
+						value = num - (i.count + count + hit + elong)
 						i.count += value
 
 				elif i.name == 'Ribosome':
 					num = int(np.round((500*1e-9)*(6.02*1e23)*cell_volume))
 					count = 0
-					V = [val for val in self.species if len(val) == 2 and val.name.split('-')[1] == 'Ribosome']
+					V = [val for val in self.species if len(val.name.split('-')) == 2 and val.name.split('-')[1] == 'Ribosome']
 					elong = self.Ribosome_elong_check
 					for j in V:
 						count += j.count
@@ -1587,7 +1588,7 @@ class NextReactionMethod(object):
 				elif i.name == 'P1':
 					num = int(np.round((35*1e-9)*(6.02*1e23)*cell_volume))
 					count = 0
-					V = [val for val in self.species if len(val.name) > 1 and val.name.split('-')[0] == 'P1']
+					V = [val for val in self.species if len(val.name.split('-')) > 1 and val.name.split('-')[0] == 'P1']
 					for j in V:
 						count += j.count
 					if num > (i.count + count):
@@ -1598,7 +1599,7 @@ class NextReactionMethod(object):
 				elif i.name == 'P2':
 					num = int(np.round((140*1e-9)*(6.02*1e23)*cell_volume))
 					count = 0
-					V = [val for val in self.species if len(val.name) > 1 and val.name.split('-')[0] == 'P2']
+					V = [val for val in self.species if len(val.name.split('-')) > 1 and val.name.split('-')[0] == 'P2']
 					for j in V:
 						count += j.count 
 					if num > (i.count + count):
@@ -1637,18 +1638,22 @@ class NextReactionMethod(object):
 		P1 = 0
 		for i in self.P1:
 			P1 += i.count
+		P1_m = (P1/float(6.02e23)) * (1/float(cell_volume))
 		P1_tot = 0
 		for i in self.P1_tot:
 			P1_tot += i.count
+		P1_tot_m = (P1_tot/float(6.02e23)) * (1/float(cell_volume))
 		P2 = 0
 		for i in self.P2:
 			P2 += i.count
+		P2_m = (P2/float(6.02e23)) * (1/float(cell_volume))
 		P2_tot = 0
 		for i in self.P2_tot:
 			P2_tot += i.count
+		P2_tot_m = (P2_tot/float(6.02e23)) * (1/float(cell_volume))
 
 
-		prot_rate = (((0.002)*(P1)/float(P1_tot)) + ((0.6)*(P2)/float(P2_tot)))/float(0.002+0.6)
+		prot_rate = (((0.002)*(P1_m)/float(P1_tot_m)) + ((0.6)*(P2_m)/float(P2_tot_m)))/float(0.002+0.6)
 		self.plot_dict.update({'prot_lyt':[prot_rate]})
 
 
@@ -1752,7 +1757,7 @@ class NextReactionMethod(object):
 
 		#keys will be species, values will be a list of counts at each iteration of the stochastic algorithm
 
-		self.increment_initation(cell_volume)
+		self.increment_initiation(cell_volume)
 
 		self.proteolytic_species()
 
@@ -1811,18 +1816,22 @@ class NextReactionMethod(object):
 				P1 = 0
 				for i in self.P1:
 					P1 += i.count
+				P1_m = (P1/float(6.02e23)) * (1/float(cell_volume))
 				P1_tot = 0
 				for i in self.P1_tot:
 					P1_tot += i.count
+				P1_tot_m = (P1_tot/float(6.02e23)) * (1/float(cell_volume))
 				P2 = 0
 				for i in self.P2:
 					P2 += i.count
+				P2_m = (P2/float(6.02e23)) * (1/float(cell_volume))
 				P2_tot = 0
 				for i in self.P2_tot:
 					P2_tot += i.count
+				P2_tot_m = (P2_tot/float(6.02e23)) * (1/float(cell_volume))
 
 
-				prot_rate = (((0.002)*(P1)/float(P1_tot)) + ((0.6)*(P2)/float(P2_tot)))/float(0.002+0.6)
+				prot_rate = (((0.002)*(P1_m)/float(P1_tot_m)) + ((0.6)*(P2_m)/float(P2_tot_m)))/float(0.002+0.6)
 				self.plot_dict['prot_lyt'].append(prot_rate)
 
 
@@ -1830,9 +1839,7 @@ class NextReactionMethod(object):
 
 				if k >= float(end):
 					break
-
-
-			
+							
 			if system_time >= float(end): #ensures that lists are at uniform lenghts based on final time point (end) and interval values (leap) 
 				key = [val for val in self.plot_dict.keys() if len(self.plot_dict[val]) != (end/float(leap) + 1)]
 				if len(key) != 0:
@@ -1847,6 +1854,8 @@ class NextReactionMethod(object):
 			if i > 0:
 
 				self.promoter_decoupling(reaction_index, tau_list, system_time)
+
+				self.increment_calc(cell_volume)
 				
 				for j in self.species:
 					j.molar_conc = (j.count)*(1/float(6.02e23))*(1/float(cell_volume))
@@ -1898,8 +1907,6 @@ class NextReactionMethod(object):
 				self.species_dict[j].append(j.count)
 			self.species_dict['time'].append(system_time)
 			self.species_dict['cell_vol'].append(cell_volume)
-
-			self.increment_calc(cell_volume)
 
 
 
