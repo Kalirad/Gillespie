@@ -780,7 +780,7 @@ class NextReactionMethod(object):
 								PRM.append(j)
 							elif k == 3:
 								PR.append(j)
-		self.dual_swtich = {'PR':PR,'PRM':PRM}
+		self.dual_switch = {'PR':PR,'PRM':PRM}
 
 	def PR_PRM_model_dependencies1(self):
 		#Use the positions of RNAP on the list(either position 1 or 3 - zero based indexing - to determine which reactions are affected
@@ -958,18 +958,21 @@ class NextReactionMethod(object):
 			for i in Q:
 				state_energy_list[i] = 0
 
-		for i in state_energy_list:
-			prob = i/float(np.sum(state_energy_list))
-			probability_configuration_list.append(prob)
+			if np.sum(state_energy_list) == 0:
+				return 'NA'
+		else:
+			for i in state_energy_list:
+				prob = i/float(np.sum(state_energy_list))
+				probability_configuration_list.append(prob)
 
-		Y = np.random.multinomial(1,probability_configuration_list)
+			Y = np.random.multinomial(1,probability_configuration_list)
 
-		current_PR_PRM_config1 = np.argmax(Y)
+			current_PR_PRM_config1 = np.argmax(Y)
 
-		return current_PR_PRM_config1
+			return current_PR_PRM_config1
 
 
-	def PR_PRM_model_config_update1(self, copy_number, val, system_time, tau_list):
+	def PR_PRM_model_config_update1(self, copy_number, val, system_time, tau_list, restriction=prom_alt):
 
 		#Remeber to change value of Z to val input
 			
@@ -985,12 +988,14 @@ class NextReactionMethod(object):
 			for i in X[Z][1]:
 				if type(i) == Species:
 					if i.name == 'RNAP':
-						i.count -= len(X[Z][0])
+						if restriction:
+							i.count -= (len(X[Z][0]) - 1)
 					else:
 						i.count -= 1
 				elif type(i) == DNA:
-					if i.name == 'PR' or i.name == 'PRM':
-						i.count -= 1
+					if restriction:
+						if i.name != prom_alt:
+							i.count -= 1
 		else:
 			for i in X[Z]:
 				i.count -= 1
@@ -1329,30 +1334,21 @@ class NextReactionMethod(object):
 			if type(i) == DNA:
 				temp = {}
 				for j in range(i.count):
-					temp.update{j+1:'unbound'}
+					temp.update({j+1:'unbound'})
 				prom.maint.update({i.name:temp})
 		self.prom_maint = prom_maint
 
-	"""
-	def promoter_snapshot(self):
-
-		prom_snapshot = {}
-		for l in range(4):
-			temp2 = {}
-
-			for i in self.prom_maint.keys():
-				temp = {}
-				for j in self.config_dict.keys():
-					if i == j:
-						for k in self.prom_maint[i].keys():
-							prom_list = np.zeros(len(self.config_dict[j]))
-							temp.update({k:prom_list})
-				temp2.update({i:temp})
-
-			prom_snapshot.update({l:temp2})
-
-		self.prom_snapshot = prom_snapshot
-		"""
+	def isomer_open_complex(self):
+		temp = {'PR':[], 'PRM':[]}
+		for i in sim.species:
+			if type(i) == IsomerComplex:
+				if i.tag_dna == 'PRM':
+					if i.promoter_state == 1:
+						temp['PRM'].append(i)
+				elif i.tag_dna == 'PR':
+					if i.promoter_state == 1:
+						temp['PR'].append(i)
+		self.isomer_open_dict = temp
 
 
 	def promoter_occupancy_stat(self, cell_volume,system_time,tau_list):
@@ -1413,14 +1409,17 @@ class NextReactionMethod(object):
 					if prom_alt:
 						if len(Q) == 0:
 							X = V[i][0](val,restriction=prom_alt)
-							V[i][2][val,X,system_time,tau_list]
-							for j in self.species:
-								j.molar_conc = (j.count)*(1/float(6.02*1e23))*(1/float(cell_volume))
-							prom_status[V[i][0]][val] = X
-							for j in range(len(Y)):
-								if j != 0:
-									temp.append(Y[j])
-							bound_elem[V[i][0]] = temp
+							if X == 'NA':
+								prom_status[V[i][0]][val] = prom_maint[prom_alt][val]	
+							else:
+								V[i][2][val,X,system_time,tau_list]
+								for j in self.species:
+									j.molar_conc = (j.count)*(1/float(6.02*1e23))*(1/float(cell_volume))
+								prom_status[V[i][0]][val] = X
+								for j in range(len(Y)):
+									if j != 0:
+										temp.append(Y[j])
+								bound_elem[V[i][0]] = temp
 						else:
 							assert len(Q) == 1
 							temp2 = []
@@ -1473,41 +1472,88 @@ class NextReactionMethod(object):
 						prom_alt = 'PRM'
 					elif i == 'PRM':
 						prom_alt = 'PR'
-					if prom_alt:
-						for k in self.prom_maint[i].keys():
-							if type(self.prom_maint[i][k]) == str:
-								Y = self.prom_status[i][k]
+					else:
+						prom_alt = False
+					for k in self.prom_maint[i].keys():
+						if type(self.prom_maint[i][k]) == str:
+							Y = self.prom_status[i][k]
+							if prom_alt:
 								Q = [val for val in copy_tracker1 if val == k]
 								if len(Q) == 0:
-									if type(j[1][k][Y]) == tuple:
+									X = [val for val in self.isomer_open_dict[prom_alt] if val.tag_complex == k and if val.count == 1]
+									if len(X) == 0:
+										if type(j[1][k][Y]) == tuple:
+											for l in j[1][k][Y][0]:
+												l.count -= 1
+											for l in j[1][k][Y][1]:
+												if type(l) == Species:
+													if l.name == 'RNAP':
+														l.count += len(j[1][k][Y][0])
+													else:
+														l.count += 1
+												elif type(l) == DNA:
+													l.count += 1
+												elif type(l) == Protein:
+													l.count += 1
+										else:
+											for l in j[1][k][Y]:
+												l.count += 1
+										copy_tracker1.append(k)
+									else:
+										assert type(j[1][k][Y]) == tuple
 										for l in j[1][k][Y][0]:
-											l.count -= 1
+											if l.name != prom_alt:
+												l.count -= 1
 										for l in j[1][k][Y][1]:
 											if type(l) == Species:
 												if l.name == 'RNAP':
-													l.count += len(j[1][k][Y][0])
+													l.count += len(j[1][k][Y][0]) - 1
 												else:
 													l.count += 1
 											elif type(l) == DNA:
-												l.count += 1
+												if l.name != prom_alt:
+													l.count += 1
 											elif type(l) == Protein:
 												l.count += 1
-									else:
-										for l in j[1][k][Y]:
+										copy_tracker1.append(k)
+							else:
+								if type(j[1][k][Y]) == tuple:
+									for l in j[1][k][Y][0]:
+										l.count -= 1
+									for l in j[1][k][Y][1]:
+										if type(l) == Species:
+											if l.name == 'RNAP':
+												l.count += len(j[1][k][Y][0])
+											else:
+												l.count += 1
+										elif type(l) == DNA:
 											l.count += 1
-							copy_tracker1.append(k)
+										elif type(l) == Protein:
+											l.count += 1
+								else:
+									for l in j[1][k][Y]:
+										l.count += 1
 
-						for k in self.prom_maint[i].keys():
-							if type(self.prom_maint[i][k]) == str:
-								Y = self.prom_status[i][k]
-								Q = [val for val in copy_tracker1 if val == k]
+					for k in self.prom_maint[i].keys():
+						if type(self.prom_maint[i][k]) == str:
+							Y = self.prom_status[i][k]
+							if prom_alt:
+								Q = [val for val in copy_tracker2 if val == k]
 								if len(Q) == 0:
 									for l in j[2][k][Y]:
 										l.get_propensity()
 										for m in range(len(self.reactions)):
 											if self.reactions[m] == l:
 												l.get_det_tau(system_time)
-												tau_list[m] = l.tau		
+												tau_list[m] = l.tau	
+									copy_tracker2.append(k)	
+							else:
+								for l in j[2][k][Y]:
+									l.get_propensity()
+									for m in range(len(self.reactions)):
+										if self.reactions[m] == l:
+											l.get_det_tau(system_time)
+											tau_list[m] = l.tau		
 
 
 	def check_isomerization(self, reaction_index, system_time, tau_list):
@@ -1521,42 +1567,65 @@ class NextReactionMethod(object):
 		if type(X.reactants[0]) == IsomerComplex:
 			if type(X.products[0]) == IsomerComplex:
 				Y = (X.reactants[0].dna, X.reactants[0].tag_complex)
-				self.prom_maint[Y[0]][Y[1]] = self.prom_status[Y[0]][Y[1]]
-				state = self.prom_maint[Y[0]][Y[1]]
+				V = [val for val in self.prom_maint.keys() if Y[0] in val.split('_')]
+				self.prom_maint[V[0]][Y[1]] = self.prom_status[V[0]][Y[1]]
+				state = self.prom_maint[V[0]][Y[1]]
 
-				for i in ref:
-					V = [val for val in i[0].split('_') if val == Y[0]]
-					if len(V) == 1:
-						W = i[1][Y[1]][state]
-						assert type(W) == tuple
-						if len(W[0]) > 1:
-							for j in W[0]:
-								if j.dna != Y[0]:
-									j.count -= 1
-							for j in W[1]:
-								if type(j) == Species:
-									if j.name == 'RNAP':
-										j.count += (len(W[0]) - 1)
-									else:
-										j.count += 1
-								elif type(j) == DNA:
-									if j.name != Y[0]:
-										j.count += 1
-						elif len(W[0]) == 1:
-							for j in W[1]:
-								if type(j) == Species:
-									if j.name != 'RNAP':
-										j.count += 1
-								elif type(j) == Protein:
-									j.count += 1
+				if Y[0] == 'PR':
+					prom_alt = 'PRM'
+				elif Y[0] == 'PRM':
+					prom_alt = 'PR'
+				else:
+					prom_alt = 0
 
-						M = i[2][Y[1]][state]
-						for j in M:
-							j.get_propensity()
-							for k in range(len(self.reactions)):
-								if j == self.reactions[k]:
-									j.get_det_tau(system_time)
-									tau_list[k] = j.tau
+				hit = 0
+
+				if prom_alt
+					for i in sim.species:
+						if type(i) == IsomerComplex:
+							if i.tag_dna == prom_alt:
+								if i.promoter_state == 1:
+									if i.tag_complex == Y[1]:
+										if i.count == 1:
+											prom_update = prom_alt
+										else:
+											prom_update = 0
+					if prom_update:
+						hit += 1
+
+				if hit == 0:
+					for i in ref:
+						if i[0] == V[0]:
+							W = i[1][Y[1]][state]
+							assert type(W) == tuple
+							if len(W[0]) > 1:
+								for j in W[0]:
+									if j.dna != Y[0]:
+										j.count -= 1
+								for j in W[1]:
+									if type(j) == Species:
+										if j.name == 'RNAP':
+											j.count += (len(W[0]) - 1)
+										else:
+											j.count += 1
+									elif type(j) == DNA:
+										if j.name != V[0]:
+											j.count += 1
+							elif len(W[0]) == 1:
+								for j in W[1]:
+									if type(j) == Species:
+										if j.name != 'RNAP':
+											j.count += 1
+									elif type(j) == Protein:
+										j.count += 1
+
+							M = i[2][Y[1]][state]
+							for j in M:
+								j.get_propensity()
+								for k in range(len(self.reactions)):
+									if j == self.reactions[k]:
+										j.get_det_tau(system_time)
+										tau_list[k] = j.tau
 
 	def check_elong_react(self, reaction_index): #This function detects is an inititation elongation reaction has taken place. Updates the status of promoter occupancy
 		"""This function should be done prior to stat_occup change methods.
