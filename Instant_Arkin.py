@@ -2,8 +2,7 @@
 T7 model
 ========
 
-A model of T7 life cycle in E.coli host.  The model uses the Stochastic 
-Simulation Algorithm from Gibson & Bruck (2000) [1].
+A model of T7 life cycle in E.coli host.  The model uses the Stochastic Simulation Algorithm from Gibson & Bruck (2000) [1].
 
 [1] Gibson M.A and Bruck J. (2000), "Exact stochastic simulation of Chemical Systems with Many Species and Many Channels", J.Phys. Chem. 104:1876-1889
 
@@ -58,20 +57,19 @@ class DNA(Species):
         Parameters
         ----------
         name : str
-            The name of the species, i.e. DNA, mRNA, etc.
+               The name of the species, i.e. DNA, mRNA, etc.
 
         count : int, optional
-            The quantity of the species, defualts to zero.
+                The quantity of the species, defualts to zero.
 
         tag_dna : int
-            Integer representing promoter id.
+                Integer representing promoter id.
 
         dna_length : int
-            Total nucleotide length (default=False)
+                Total nucleotide length (default=False)
 
         nut_sequence : list
-            First and Second elements nucleotide position. Third element tuple
-            of reaction constants. Ex. [1000, 1060, (0..1,0.2,0.3,0.4)] 
+                First and Second elements nucleotide position. Third element tuple of reaction constants. Ex. [1000, 1060, (0..1,0.2,0.3,0.4)] 
 
         termination_sequence : list
                 First and Second elements nucletide position. Third element tuple of reaction constants. Ex. [1000, 1060, (0.1,0.2,0.7)]
@@ -190,7 +188,7 @@ class IsomerComplex(Species):
 
         count : int
             defaults to zero
-        """
+         """
         Species.__init__(self, name, count=False)
         self.count = count
         self.promoter_state = promoter_state
@@ -289,7 +287,7 @@ class Reaction(object):
         """ 
         At the end of the for loop, the penultimate list will contain values pertaining to the adjusted stoichiometic count for  
         each species. The next step is to iterate through this list and multiply all values in the list with the rate constant. 
-         
+
         """
        
         a = 1
@@ -538,7 +536,6 @@ class NextReactionMethod(object):
                             term_list.append(Species(name,count=0))
                     self.transcription_elong_species[i].append(term_list)
 
-   
     def create_transcription_elongation_reactions(self):
         """
         The transcription elongation reactions are represented in a dictionary. The keys in the dictionary represent the DNA species objects
@@ -700,6 +697,7 @@ class NextReactionMethod(object):
                 hold += temp_list[i]
         self.transcription_elong_reactions = hold
 
+
     def create_translation_elongation_species(self):
         translation_species_dict = {}
         for i in self.species:
@@ -766,6 +764,21 @@ class NextReactionMethod(object):
             self.dep_graph[i] = dep_rec
         #return self.dep_graph
 
+    
+    def RNAP_data_store(self):
+        RNAP_elong_exit = []
+        for i in range(len(self.total_reactions)):
+            R = self.total_reactions[i]
+            for j in R.reactants:
+                if type(j) != IsomerComplex:
+                    for k in R.products:
+                        if type(k) == Species:
+                            if k.name == 'RNAP':
+                                RNAP_elong_exit.append(i)
+                else:
+                    if j.promoter_state == 1:
+                        RNAP_elong_entry.append(i)
+        self.RNAP_elong_store = {'RNAP_entry':RNAP_elong_entry, 'RNAP_exit':RNAP_elong_exit}
 
     def config_prom(self):
 
@@ -790,19 +803,8 @@ class NextReactionMethod(object):
 
         self.config_dict = config_dict
 
-    def dual_switch_states(self):
-        for i in self.config_dict.keys():
-            if i == 'PR_PRM':
-                PR = []
-                PRM = []
-                for j in range(len(self.config_dict[i])):
-                    for k in range(len(self.config_dict[i][j])):
-                        if self.config_dict[i][j][k] == 'RNAP':
-                            if k == 1:
-                                PRM.append(j)
-                            elif k == 3:
-                                PR.append(j)
-        self.dual_switch = {'PR':PR,'PRM':PRM}
+
+
 
     def PR_PRM_model_dependencies1(self):
         #Use the positions of RNAP on the list(either position 1 or 3 - zero based indexing - to determine which reactions are affected
@@ -813,6 +815,7 @@ class NextReactionMethod(object):
                     copy_number = []
                     for j in range(i.count):
                         copy_number.append(j+1)
+
                     break
 
 
@@ -873,12 +876,6 @@ class NextReactionMethod(object):
                                         if l.dna == 'PR':
                                             if l.tag_complex == i:
                                                 occupancy_increase.append(l)
-                    else:
-                        if type(config[j][k]) != float:
-                            for l in self.species:
-                                if type(l) == Species:
-                                    if l.name == config[j][k]:
-                                        occupancy_decrease.append(l)
 
                 if len(occupancy_increase) > 0: #This allows us to distinguish between multiple promoter activation, promoter activation, and no promoter activation
                     hit = 0
@@ -915,24 +912,18 @@ class NextReactionMethod(object):
             for j in X[i].keys():
                 reaction_list = []
                 if type(X[i][j]) == tuple:
-                    final_list = X[i][j][0]
-                    for k in range(len(X[i][j])):
-                        if k != 0:
-                            final_list += X[i][j][k]
-                    reaction_occupancy_list = list(set(final_list))
-                else:
-                    reaction_occupancy_list = list(set(X[i][j]))
-                for k in reaction_occupancy_list:
-                    for l in self.reactions:
-                        for m in l.reactants:
-                            if k.name == m.name:
-                                reaction_list.append(l)
-                temp_dict.update({j:reaction_list})
+                    reaction_occupancy_list = list(set(X[i][j][0]))
+                    for k in reaction_occupancy_list:
+                        for l in self.reactions:
+                            for m in l.reactants:
+                                if k.name == m.name:
+                                    reaction_list.append(l)
+                    temp_dict.update({j:reaction_list})
             occupancy_reaction_dict.update({i:temp_dict})
         self.occupancy_reaction1 = occupancy_reaction_dict
         self.PR_PRM_transcription_states = PR_PRM_transcription_states
 
-    def PR_PRM_stat_energy_model_selection1(self,copy_number,restriction):
+    def PR_PRM_stat_energy_model_selection1(self,copy_number):
         config = np.array([[1, 0, 0, 0, 0.0], [2, 0, 0, 'R', -11.7], [3, 0, 'R', 0, -10.1], [4, 'R', 0, 0, -10.1], [5, 0, 0, 'C', -10.8],
         [6, 0, 'C', 0, -10.8], [7, 'C', 0, 0, -12.1], [8,'RNAP', 0, 0, -11.5], [9, 0, 0, 'RNAP', -12.5], 
         [10, 0, 'R', 'R', -23.7], [11, 'R',  0, 'R', -21.8], [12, 'R', 'R', 0, -22.2], [13, 0, 'C', 'C', -21.6],
@@ -975,33 +966,21 @@ class NextReactionMethod(object):
                                         state_energy = (np.exp(((-1)*float(i[-1]))/float(boltzman*310.15))*(k.molar_conc**R_power)*(j.molar_conc**C_power)*(l.molar_conc**RNAP_power))
             state_energy_list.append(state_energy)
 
-        if restriction:
-            Q = [val for val in range(len(config)) if val not in self.dual_switch[restriction]]
-            for i in Q:
-                state_energy_list[i] = 0
-
-            if np.sum(state_energy_list) == 0:
-                return 'NA'
-            else:
-                for i in state_energy_list:
-                    prob = i/float(np.sum(state_energy_list))
-                    probability_configuration_list.append(prob)
-
-                Y = np.random.multinomial(1,probability_configuration_list)
-                current_PR_PRM_config1 = np.argmax(Y)
-                return current_PR_PRM_config1
-
-        else:
-            for i in state_energy_list:
-                prob = i/float(np.sum(state_energy_list))
-                probability_configuration_list.append(prob)
-
-            Y = np.random.multinomial(1,probability_configuration_list)
-            current_PR_PRM_config1 = np.argmax(Y)
-            return current_PR_PRM_config1
+        for i in state_energy_list:
+            prob = i/float(np.sum(state_energy_list))
+            probability_configuration_list.append(prob)
 
 
-    def PR_PRM_model_config_update1(self, copy_number, val, system_time, tau_list, restriction):
+        Y = np.random.multinomial(1,probability_configuration_list)
+
+        current_PR_PRM_config1 = np.argmax(Y)
+
+        return current_PR_PRM_config1
+
+
+    def PR_PRM_model_config_update1(self, copy_number, val, system_time, tau_list):
+
+        #Remeber to change value of Z to val input
             
         Z = val
 
@@ -1011,48 +990,35 @@ class NextReactionMethod(object):
 
         if type(X[Z]) == tuple:
             for i in X[Z][0]:
-                if restriction:
-                    if i.dna != restriction:
-                        i.count += 1
-                else:
-                    i.count += 1
+                i.count += 1
             for i in X[Z][1]:
                 if type(i) == Species:
                     if i.name == 'RNAP':
-                        if restriction:
-                            i.count -= (len(X[Z][0]) - 1)
-                        else:
-                            i.count -= len(X[Z][0])
+                        i.count -= len(X[Z][0])
                     else:
                         i.count -= 1
                 elif type(i) == DNA:
-                    if restriction:
-                        if i.name != restriction:
-                            i.count -= 1
-                    else:
+                    if i.name == 'PR' or i.name == 'PRM':
                         i.count -= 1
-        else:
-            for i in X[Z]:
-                i.count -= 1
-        
-        for i in Y[Z]:
-            hit = 0
-            for j in self.PR_PRM_isomer_const:
-                if j == Z:
-                    for k in i.reactants:
-                        if type(k) == IsomerComplex:
-                            if k.promoter_state == 0:
-                                hit += 1
 
-            if hit == 0:
-                i.get_propensity()
-            else:
-                i.get_propensity(const=True)
+            for i in Y[Z]:
+                hit = 0
+                for j in self.PR_PRM_isomer_const:
+                    if j == Z:
+                        for k in i.reactants:
+                            if type(k) == IsomerComplex:
+                                if k.promoter_state == 0:
+                                    hit += 1
 
-            for j in range(len(self.reactions)):
-                if self.reactions[j] == i:
-                    i.get_det_tau(system_time)
-                    tau_list[j] = i.tau
+                if hit == 0:
+                    i.get_propensity()
+                else:
+                    i.get_propensity(const=True)
+
+                for j in range(len(self.reactions)):
+                    if self.reactions[j] == i:
+                        i.get_det_tau(system_time)
+                        tau_list[j] = i.tau
 
     def PRE_model_dependencies2(self):
         "This is the statistical binding model for the PRE promoter"
@@ -1098,12 +1064,6 @@ class NextReactionMethod(object):
                             for l in config2[j]:
                                 if l == 'CII':
                                     PRE_isomer_const.append(j)
-
-                    elif config2[j][k] != float:
-                        for l in self.species:
-                            if type(l) == Protein:
-                                if l.name == config2[j][k]:
-                                    occupancy_decrease.append(l)
                 if len(occupancy_increase) > 0:
                     temp_dict.update({j:(occupancy_increase,occupancy_decrease)})
                 else:
@@ -1124,19 +1084,13 @@ class NextReactionMethod(object):
             for j in X[i].keys():
                 reaction_occupancy = []
                 if type(X[i][j]) == tuple:
-                    ref = X[i][j][0]
-                    for k in range(len(X[i][j])):
-                        if k != 0:
-                            ref += X[i][j][k]
-                    species = list(set(ref))
-                else:
-                    species = list(set(X[i][j]))
-                for k in species:
-                    for l in self.reactions:
-                        for m in l.reactants:
-                            if k.name == m.name:
-                                reaction_occupancy.append(l)
-                temp_react.update({j:reaction_occupancy})
+                    species = list(set(X[i][j][0]))
+                    for k in species:
+                        for l in self.reactions:
+                            for m in l.reactants:
+                                if k.name == m.name:
+                                    reaction_occupancy.append(l)
+                    temp_react.update({j:reaction_occupancy})
             reaction_dict.update({i:temp_react})
         self.occupancy_reaction2 = reaction_dict
 
@@ -1193,27 +1147,24 @@ class NextReactionMethod(object):
                 j.count += 1
             for j in X[Z][1]:
                 j.count -= 1
-        else:
-            for j in X[Z]:
-                j.count -= 1
 
-        for i in Y[Z]:
-            hit = 0
-            for j in self.PRE_isomer_const:
-                if j == Z:
-                    for k in i.reactants:
-                        if type(k) == IsomerComplex:
-                            if k.promoter_state == 0:
-                                hit += 1
-            if hit == 0:
-                i.get_propensity()
-            else:
-                i.get_propensity(const=True)
+            for i in Y[Z]:
+                hit = 0
+                for j in self.PRE_isomer_const:
+                    if j == Z:
+                        for k in i.reactants:
+                            if type(k) == IsomerComplex:
+                                if k.promoter_state == 0:
+                                    hit += 1
+                if hit == 0:
+                    i.get_propensity()
+                else:
+                    i.get_propensity(const=True)
 
-            for j in range(len(self.reactions)):
-                if self.reactions[j] == i:
-                    i.get_det_tau(system_time)
-                    tau_list[j] = i.tau
+                for j in range(len(self.reactions)):
+                    if self.reactions[j] == i:
+                        i.get_det_tau(system_time)
+                        tau_list[j] = i.tau
 
     def PL_model_dependencies3(self):
 
@@ -1250,12 +1201,6 @@ class NextReactionMethod(object):
                                     if l.dna == 'PL':
                                         if l.tag_complex == i:
                                             occupancy_increase.append(l)
-                    else:
-                        if type(config3[j][k]) != float:
-                            for l in self.species:
-                                if type(l) == Species:
-                                    if l.name == config3[j][k]:
-                                        occupancy_decrease.append(l)
                 if len(occupancy_increase) > 0:
                     temp_dict.update({j:(occupancy_increase,occupancy_decrease)})
                 else:
@@ -1276,20 +1221,13 @@ class NextReactionMethod(object):
             for j in X[i].keys():
                 reaction_list = []
                 if type(X[i][j]) == tuple:
-                    ref = X[i][j][0]
-                    for k in range(len(X[i][j])):
-                        if k > 0:
-                            ref += X[i][j][k]
-                    species = list(set(ref))
-                else:
-                    species = list(set(X[i][j]))
-
-                for k in species:
-                    for l in self.reactions:
-                        for m in l.reactants:
-                            if k.name == m.name:
-                                reaction_list.append(l)
-                reaction_dict.update({j:reaction_list})
+                    species = list(set(X[i][j][0]))
+                    for k in species:
+                        for l in self.reactions:
+                            for m in l.reactants:
+                                if k.name == m.name:
+                                    reaction_list.append(l)
+                    reaction_dict.update({j:reaction_list})
             reaction_occupancy_dict.update({i:reaction_dict})
         self.occupancy_reaction3 = reaction_occupancy_dict
         self.PL_transcription_states = PL_transcription_states
@@ -1352,26 +1290,57 @@ class NextReactionMethod(object):
                 j.count += 1
             for j in X[Z][1]:
                 j.count -= 1
-        else:
-            for j in X[Z]:
-                j.count -= 1
 
-        for i in Y[Z]:
-            i.get_propensity()
-            for j in range(len(self.reactions)):
-                if self.reactions[j] == i:
-                    i.get_det_tau(system_time)
-                    tau_list[j] = i.tau
+            for i in Y[Z]:
+                i.get_propensity()
+                for j in range(len(self.reactions)):
+                    if self.reactions[j] == i:
+                        i.get_det_tau(system_time)
+                        tau_list[j] = i.tau
 
     def promoter_maintenance(self):
         prom_maint = {}
         for i in self.species:
             if type(i) == DNA:
                 temp = {}
-                for j in range(i.count):
-                    temp.update({j+1:'unbound'})
-                prom_maint.update({i.name:temp})
+                hit = 0
+                V = 'unbound'
+                if i.name == 'PRM' or i.name == 'PR':
+                    if hit == 0:
+                        count = 1
+                        for j in range(i.count):
+                            temp.update({count:V})
+                            count += 1
+                        hit += 1
+                        prom_maint.update({'PR_PRM':temp})
+                else:
+                    count = 1
+                    for j in range(i.count):
+                        temp.update({count:V})
+                        count += 1
+                    prom_maint.update({i.name:temp})
         self.prom_maint = prom_maint
+
+
+    def promoter_snapshot(self):
+
+        prom_snapshot = {}
+        for l in range(4):
+            temp2 = {}
+
+            for i in self.prom_maint.keys():
+                temp = {}
+                for j in self.config_dict.keys():
+                    if i == j:
+                        for k in self.prom_maint[i].keys():
+                            prom_list = np.zeros(len(self.config_dict[j]))
+                            temp.update({k:prom_list})
+                temp2.update({i:temp})
+
+            prom_snapshot.update({l:temp2})
+
+        self.prom_snapshot = prom_snapshot
+
 
     def promoter_occupancy_stat(self, cell_volume,system_time,tau_list):
 
@@ -1379,99 +1348,54 @@ class NextReactionMethod(object):
         for i in self.prom_maint.keys():
             L = []
             for j in self.prom_maint[i].keys():
-                if type(self.prom_maint[i][j]) == str:
+                if self.prom_maint[i][j] == 'unbound':
                     L.append(j)
-                    if self.prom_maint[i][j] == 'indeterminate':
-                        self.prom_maint[i][j] = 'unbound'
             np.random.shuffle(L)
             bound_elem.update({i:L})
 
-        
-        M = [self.PR_PRM_stat_energy_model_selection1,self.PR_PRM_stat_energy_model_selection1,self.PRE_stat_energy_model_selection2,self.PL_stat_energy_model_selection3]
-        N = [self.PR_PRM_model_config_update1,self.PR_PRM_model_config_update1,self.PRE_model_config_update2,self.PL_model_config_update3]
-        W = ['PR','PRM','PRE','PL']
+        M = [self.PR_PRM_stat_energy_model_selection1,self.PRE_stat_energy_model_selection2,self.PL_stat_energy_model_selection3]
+        N = [self.PR_PRM_model_config_update1,self.PRE_model_config_update2,self.PL_model_config_update3]
+        W = ['PR_PRM','PRE','PL']
 
         V = [val for val in zip(W,M,N)]
 
-        PR = bound_elem['PR']
-        PRM = bound_elem['PRM']
+        PR_PRM = bound_elem['PR_PRM']
         PRE = bound_elem['PRE']
         PL = bound_elem['PL']
         
-        temp_PR = {}
-        for i in PR:
-            temp_PR.update({i:0})
-        temp_PRM = {}
-        for i in PRM:
-            temp_PRM.update({i:0})
+        temp_PR_PRM = {}
+        for i in PR_PRM:
+            temp_PR_PRM.update({i:0})
         temp_PRE = {}
         for i in PRE:
             temp_PRE.update({i:0})
         temp_PL = {}
         for i in PL:
             temp_PL.update({i:0})
-        prom_status = {'PR':temp_PR,'PRM':temp_PRM, 'PRE':temp_PRE, 'PL':temp_PL}
+        prom_status = {'PR_PRM':temp_PR_PRM,'PRE':temp_PRE,'PL':temp_PL}
+
 
         while np.sum(bound_elem.values()) > 0:
 
-            F = range(4)
+            F = range(3)
             np.random.shuffle(F)
             for i in F:
                 Y = bound_elem[V[i][0]]
                 if len(Y) > 0:
                     temp = []
-                    val = Y[0]
-                    if V[i][0] == 'PR':
-                        prom_alt = 'PRM'
-                        Q = [m for m in bound_elem[prom_alt] if m == val]
-                    elif V[i][0] == 'PRM':
-                        prom_alt = 'PR'
-                        Q = [m for m in bound_elem[prom_alt] if m == val]
-                    else:
-                        prom_alt = 0
+                    val = Y[0]  
+                    X = V[i][1](val)
+                    V[i][2](val,X,system_time,tau_list)
+                    for j in self.species:
+                        j.molar_conc = (j.count)*(1/float(6.02*1e23))*(1/float(cell_volume))
+                    prom_status[V[i][0]][val] = X
+                    for j in range(len(Y)):
+                        if j != 0:
+                            temp.append(Y[j])
+                    bound_elem[V[i][0]] = temp
 
-                    if prom_alt:
-                        if len(Q) == 0:
-                            X = V[i][1](val, prom_alt)
-                            if X == 'NA':
-                                self.prom_maint[V[i][0]][val] = 'indeterminate'    
-                            else:
-                                V[i][2](val,X,system_time,tau_list,prom_alt)
-                                for j in self.species:
-                                    j.molar_conc = (j.count)*(1/float(6.02*1e23))*(1/float(cell_volume))
-                                prom_status[V[i][0]][val] = X
-                                for j in range(len(Y)):
-                                    if j != 0:
-                                        temp.append(Y[j])
-                                bound_elem[V[i][0]] = temp
-                        else:
-                            assert len(Q) == 1
-                            temp2 = []
-                            X = V[i][1](val, 0)
-                            V[i][2](val,X,system_time,tau_list, 0)
-                            for j in self.species:
-                                j.molar_conc = (j.count)*(1/float(6.02*1e23))*(1/float(cell_volume))
-                            prom_status[V[i][0]][val] = X
-                            prom_status[prom_alt][val] = X
-                            for j in range(len(Y)):
-                                if j != 0:
-                                    temp.append(Y[j])
-                            bound_elem[V[i][0]] = temp
-                            Z = bound_elem[prom_alt]
-                            for j in range(len(Z)):
-                                if Z[j] != val:
-                                    temp2.append(Z[j])
-                            bound_elem[prom_alt] = temp2
-                    else:    
-                        X = V[i][1](val)
-                        V[i][2](val,X,system_time,tau_list)
-                        for j in self.species:
-                            j.molar_conc = (j.count)*(1/float(6.02*1e23))*(1/float(cell_volume))
-                        prom_status[V[i][0]][val] = X
-                        for j in range(len(Y)):
-                            if j != 0:
-                                temp.append(Y[j])
-                        bound_elem[V[i][0]] = temp
+
+                    self.prom_snapshot[self.time_window][V[i][0]][val][X] += 1
 
         self.prom_status = prom_status
 
@@ -1482,106 +1406,36 @@ class NextReactionMethod(object):
 
         G = [self.occupancy_species1, self.occupancy_species2, self.occupancy_species3]
 
-        I = [self.occupancy_reaction1, self.occupancy_reaction2, self.occupancy_reaction3]
+        I = [self.occupancy_reaction1,self.occupancy_reaction2,self.occupancy_reaction3]
 
         M = [val for val in zip(F,G,I)]
 
-        copy_tracker1 = []
-        copy_tracker2 = []
-
         for j in M:
             for i in self.prom_maint.keys():
-                V = [val for val in j[0].split('_') if val == i]
-                if len(V) == 1:
-                    if i == 'PR':
-                        prom_alt = 'PRM'
-                    elif i == 'PRM':
-                        prom_alt = 'PR'
-                    else:
-                        prom_alt = 0
+                if j[0] == i:
                     for k in self.prom_maint[i].keys():
-                        if self.prom_maint[i][k] == 'unbound':
+                        if type(self.prom_maint[i][k]) == str:
                             Y = self.prom_status[i][k]
-                            if prom_alt:  
-                                Q = [val for val in copy_tracker1 if val == k]
-                                if len(Q) == 0:
-                                    if self.prom_maint[prom_alt][k] == 'unbound':
-                                        assert (self.prom_status[i][k] == self.prom_status[prom_alt][k])
-                                        if type(j[1][k][Y]) == tuple:
-                                            for l in j[1][k][Y][0]:
-                                                l.count -= 1
-                                            for l in j[1][k][Y][1]:
-                                                if type(l) == Species:
-                                                    if l.name == 'RNAP':
-                                                        l.count += len(j[1][k][Y][0])
-                                                    else:
-                                                        l.count += 1
-                                                elif type(l) == DNA:
-                                                    l.count += 1
-                                                elif type(l) == Protein:
-                                                    l.count += 1
-                                        else:
-                                            for l in j[1][k][Y]:
-                                                l.count += 1
-                                        copy_tracker1.append(k)
-                                    else:
-                                        if type(j[1][k][Y]) == tuple:
-                                            for l in j[1][k][Y][0]:
-                                                if l.dna != prom_alt:
-                                                    l.count -= 1
-                                            for l in j[1][k][Y][1]:
-                                                if type(l) == Species:
-                                                    if l.name == 'RNAP':
-                                                        l.count += len(j[1][k][Y][0]) - 1
-                                                    else:
-                                                        l.count += 1
-                                                elif type(l) == DNA:
-                                                    if l.name != prom_alt:
-                                                        l.count += 1
-                                                elif type(l) == Protein:
-                                                    l.count += 1
-                                        else:
-                                            for l in j[1][k][Y]:
-                                                l.count += 1
-                                        copy_tracker1.append(k)
-                            else:
-                                if type(j[1][k][Y]) == tuple:
-                                    for l in j[1][k][Y][0]:
-                                        l.count -= 1
-                                    for l in j[1][k][Y][1]:
-                                        if type(l) == Species:
-                                            if l.name == 'RNAP':
-                                                l.count += len(j[1][k][Y][0])
-                                            else:
-                                                l.count += 1
-                                        elif type(l) == DNA:
-                                            l.count += 1
-                                        elif type(l) == Protein:
-                                            l.count += 1
-                                else:
-                                    for l in j[1][k][Y]:
+                            if type(j[1][k][Y]) == tuple:
+                                for l in j[1][k][Y][0]:
+                                    l.count -= 1
+                                for l in j[1][k][Y][1]:
+                                    if type(l) == Species:
+                                        if l.name == 'RNAP':
+                                            l.count += len(j[1][k][Y][0])
+                                    elif type(l) == DNA:
                                         l.count += 1
 
                     for k in self.prom_maint[i].keys():
-                        if self.prom_maint[i][k] == 'unbound':
+                        if type(self.prom_maint[i][k]) == str:
                             Y = self.prom_status[i][k]
-                            if prom_alt:
-                                Q = [val for val in copy_tracker2 if val == k]
-                                if len(Q) == 0:
-                                    for l in j[2][k][Y]:
-                                        l.get_propensity()
-                                        for m in range(len(self.reactions)):
-                                            if self.reactions[m] == l:
-                                                l.get_det_tau(system_time)
-                                                tau_list[m] = l.tau    
-                                    copy_tracker2.append(k)    
-                            else:
+                            if type(j[1][k][Y]) == tuple:
                                 for l in j[2][k][Y]:
                                     l.get_propensity()
                                     for m in range(len(self.reactions)):
                                         if self.reactions[m] == l:
                                             l.get_det_tau(system_time)
-                                            tau_list[m] = l.tau        
+                                            tau_list[m] = l.tau     
 
 
     def check_isomerization(self, reaction_index, system_time, tau_list):
@@ -1595,9 +1449,33 @@ class NextReactionMethod(object):
         if type(X.reactants[0]) == IsomerComplex:
             if type(X.products[0]) == IsomerComplex:
                 Y = (X.reactants[0].dna, X.reactants[0].tag_complex)
-                V = [val for val in self.prom_maint.keys() if val == Y[0]]
+                V = [val for val in self.prom_maint.keys() if Y[0] in val.split('_')]
                 self.prom_maint[V[0]][Y[1]] = self.prom_status[V[0]][Y[1]]
                 state = self.prom_maint[V[0]][Y[1]]
+
+                for i in ref:
+                    if i[0] == V[0]:
+                        W = i[1][Y[1]][state]
+                        assert type(W) == tuple
+                        if len(W[0]) > 1:
+                            for j in W[0]:
+                                if j.dna != Y[0]:
+                                    j.count -= 1
+                            for j in W[1]:
+                                if type(j) == Species:
+                                    if j.name == 'RNAP':
+                                        j.count += (len(W[0]) - 1)
+                                elif type(j) == DNA:
+                                    if j.name != V[0]:
+                                        j.count += 1
+
+                        M = i[2][Y[1]][state]
+                        for j in M:
+                            j.get_propensity()
+                            for k in range(len(self.reactions)):
+                                if j == self.reactions[k]:
+                                    j.get_det_tau(system_time)
+                                    tau_list[k] = j.tau
 
     def check_elong_react(self, reaction_index): #This function detects is an inititation elongation reaction has taken place. Updates the status of promoter occupancy
         """This function should be done prior to stat_occup change methods.
@@ -1606,7 +1484,8 @@ class NextReactionMethod(object):
         V = [val for val in R.products if type(val) == DNA]
 
         if len(V) == 1:
-            M = [val for val in self.prom_maint.keys() if val == V[0].name]
+
+            M = [val for val in self.prom_maint.keys() if V[0].name in val.split('_')]
             X = R.reactants[0].tag_complex
             self.prom_maint[M[0]][X] = 'unbound'
             self.RNAP_elong_check += 1
@@ -1663,14 +1542,8 @@ class NextReactionMethod(object):
                         count += j.count
                     for j in V_closed:
                         hit += j.count
-                    if num < (i.count + count + hit + elong):
-                        for j in V_open:
-                            print j.name,type(j),j.count
-                        for j in V_closed:
-                            print j.name,type(j),j.count
-                        print num,i.count,count,hit,elong,self.prom_maint
-                        assert num >= (i.count + count + hit + elong)
-                    elif num > (i.count + count + hit + elong):
+                    assert num >= (i.count + count + hit + elong)
+                    if num > (i.count + count + hit + elong):
                         value = num - (i.count + count + hit + elong)
                         i.count += value
 
@@ -1786,48 +1659,23 @@ class NextReactionMethod(object):
         self.P1_tot = P1_tot
         self.P2_tot = P2_tot
 
-    def check_closed_count2(self, reaction_index):
-        V = [val for val in self.species if type(val) == IsomerComplex and val.promoter_state == 0]
-        val = 0
-        for i in V:
-            val += i.count
-        if val > 0:
-            for i in V:
-                print i.name,type(i),i.count
-            self.term += 1
-
-            R = self.total_reactions[reaction_index]
-            for i in R.reactants:
-                print i.name,type(i),'reactants'
-            for i in R.products:
-                print i.name,type(i),'products'
-            print self.prom_status, self.prom_maint
-
-    def check_closed_count1(self,reaction_index):
-        V = [val for val in self.species if type(val) == IsomerComplex and val.promoter_state == 0]
-        hit = 0
-        for i in V:
-            if i.count < 0:
-                hit += 1
-        if hit > 0:
-            for i in V:
-                print i.name,type(i),i.count
-            self.term += 1
 
 
-            R = self.total_reactions[reaction_index]
-            for i in R.reactants:
-                print i.name,type(i),'reactants'
-            for i in R.products:
-                print i.name,type(i),'products'
-            print self.prom_status, self.prom_maint
+    def prom_status_time(self, system_time):
+        if system_time >= self.check_time:
+            if self.check_time < 1800:
+                self.check_time += 600
+            elif self.check_time == 1800:
+                self.check_time += 300
+            
+            self.time_window += 1
 
     def NRM_initialization_protocol(self,reaction_constants):
 
         self.create_isomerization_species()
 
         self.create_isomerization_reaction(reaction_constants)
-
+        
         self.create_transcription_elongation_species()
 
         self.create_transcription_elongation_reactions()
@@ -1840,9 +1688,7 @@ class NextReactionMethod(object):
 
         self.config_prom()
 
-        self.dual_switch_states()
-
-        
+        self.promoter_snapshot()
 
     def promoter_decoupling(self, reaction_index, tau_list, system_time):
 
@@ -1855,23 +1701,20 @@ class NextReactionMethod(object):
         self.check_isomerization(reaction_index, system_time, tau_list)
 
         self.stat_occup_change(system_time,tau_list)
-
-        self.check_closed_count1(reaction_index)
-
-        self.check_closed_count2(reaction_index)
         
         self.check_elong_react(reaction_index)
-    
-        
+           
     def NRM_execution(self, step, leap, end, reaction_constants):
+
+        self.time_window = 0
+
+        self.check_time = 600
 
         system_time = 0
 
         self.RNAP_elong_check = 0
 
         self.Ribosome_elong_check = 0
-
-        self.term = 0
 
         self.promoter_maintenance()
 
@@ -1975,20 +1818,22 @@ class NextReactionMethod(object):
                 if len(key) != 0:
                     for j in key:
                         self.plot_dict[j].append(self.plot_dict[j][-1])
+
+                self.plot_dict.update({'prom_activation':self.prom_snapshot})
                 break
-                
+
+            self.prom_status_time(system_time)
+
             if i > 0:
 
                 self.promoter_decoupling(reaction_index, tau_list, system_time)
-
-                if self.term > 0:
-                    break
 
                 self.increment_calc(cell_volume)
                 
                 for j in self.species:
                     j.molar_conc = (j.count)*(1/float(6.02e23))*(1/float(cell_volume))
             
+
             self.promoter_occupancy_stat(cell_volume,system_time,tau_list)
 
             reaction_index = np.argmin(tau_list)
