@@ -173,10 +173,11 @@ class Transcribe_Complex(Species):
 
         assert type(prom_rep) == str
         self.prom_rep = prom_rep
+        self.copy_number = copy_number
+
         Species.__init__(self,name,count=False)
         self.name = name
         self.count = count
-
 class Reaction(object):
 
     def __init__(self, reactants, products, ks):
@@ -360,13 +361,6 @@ class NextReactionMethod(object):
         assert type(rec_list[0]) == Reaction
         self.temp_reactions = rec_list
 
-    def create_DNA_objects(self):
-        DNA_objects = []
-        for i in range(len(self.copy_number)):
-            for j in DNA_init.keys():
-                name = j + '-' + 'CN' + '-' +str(i+1)
-                DNA_objects.append(DNA(name, DNA_init[j][0], i+1, dna_length=DNA_init[j][1], count=False, nut_sequence=DNA_init[j][2], termination_sequence=DNA_init[j][3]))
-      
     def create_species_list(self): #creates a list of species objects - this does not include transcription and translation reactions
        
         #Creacting a list of species
@@ -384,12 +378,29 @@ class NextReactionMethod(object):
         spec_list = X + Y
         self.species = list(set(spec_list))
 
+    def create_DNA_objects(self, DNA_init):
+        for i in range(self.copy_number):
+            for j in DNA_init.keys():
+                name = j + '-' + 'CN' + '-' +str(i+1)
+                self.species.append(DNA(name, DNA_init[j][0], i+1, dna_length=DNA_init[j][1], count=False, nut_sequence=DNA_init[j][2], termination_sequence=DNA_init[j][3]))
+
     def create_transcribe_species(self):
+        self.species.append(Species('RNAP',count=0))
         V = [val for val in self.species if type(val) == Species and val.name == 'RNAP']
+        assert len(V) == 1
         for i in self.species:
             if type(i) == DNA:
                 name = V[0].name + '-' + i.name + '-' + str(i.mol_number)
                 self.species.append(Transcribe_Complex(name, i.name, i.mol_number, count=False))
+
+    def create_transcript_activation_species(self):
+        activation = []
+        V = [val for val in self.species if type(val) == DNA]
+        for i in V:
+            name = i.name.split('-')[0] + '-' + 'transcript_activate' + '-' + str(i.mol_number)
+            activation.append(Species(name,count=False))
+        self.species += activation
+
 
     def create_transcribe_reactions(self,reaction_constants):
         transcribe_reactions = []
@@ -399,8 +410,15 @@ class NextReactionMethod(object):
                 V = [val for val in self.species if type(val) == Transcribe_Complex and val.prom_rep == i.name]
                 Q = [val for val in V if val.copy_number == i.mol_number]
                 assert len(Q) == 1
-                R = Reaction([i,j,X[0]],[Q[0]],reaction_constants[i.name])
-                transcribe_reactions.append(R)
+                for j in self.species:
+                    if type(j) == Species:
+                        Y = j.name.split('-')
+                        if len(Y) == 3:
+                            if Y[1] == 'transcript_activate':
+                                if Y[-1] == str(i.mol_number):
+                                    if Y[0] == i.name.split('-')[0]:
+                                        R = Reaction([i,j,X[0]],[Q[0]],reaction_constants[i.name.split('-')[0]])
+                                        transcribe_reactions.append(R)
 
         self.reactions = self.temp_reactions + transcribe_reactions
     
@@ -516,11 +534,12 @@ class NextReactionMethod(object):
                         elong_react = []
                         for k in self.species:
                             if type(k) == DNA:
-                                for l in self.species:
-                                    if type(l) == Transcribe_Complex:
-                                        if l.prom_rep == k.name:
-                                            if l.copy_number == k.mol_number
-                                                elong_react.append(Reaction([l],[k,Y[0]],(self.k_elong,self.k_elong)))
+                                if i.name.split('-')[0] == k.name.split('-')[0]:
+                                    for l in self.species:
+                                        if type(l) == Transcribe_Complex:
+                                            if l.prom_rep == k.name:
+                                                if l.copy_number == k.mol_number:
+                                                    elong_react.append(Reaction([l],[k,Y[0]],(self.k_elong,self.k_elong)))
                         for k in range(len(Y)):
                             if k < i.nut_sequence[0]:
                                 elong_react.append(Reaction([Y[k]],[Y[k+1]],(self.k_elong,self.k_elong)))
@@ -623,11 +642,12 @@ class NextReactionMethod(object):
                     if j == 0:
                         for k in self.species:
                             if type(k) == DNA:
-                                for l in self.species:
-                                    if type(l) == Transcribe_Complex:
-                                        if l.prom_rep == k.name:
-                                            if l.copy_number == k.mol_number:
-                                                elong_reactions.append(Reaction([l],[k,Y[j]],(self.k_elong,self.k_elong)))
+                                if i.name.split('-')[0] == k.name.split('-')[0]: 
+                                    for l in self.species:
+                                        if type(l) == Transcribe_Complex:
+                                            if l.prom_rep == k.name:
+                                                if l.copy_number == k.mol_number:
+                                                    elong_reactions.append(Reaction([l],[k,Y[j]],(self.k_elong,self.k_elong)))
                         elong_reactions.append(Reaction([Y[j]],[Y[j+1]],(self.k_elong,self.k_elong)))
                     elif 0 < j < (len(Y) - 1):
                         elong_reactions.append(Reaction([Y[j]],[Y[j+1]],(self.k_elong,self.k_elong)))
@@ -725,6 +745,17 @@ class NextReactionMethod(object):
             self.dep_graph[i] = dep_rec
         #return self.dep_graph
 
+    def unique_reactions_promoter(self):
+        unique_prom = {}
+        for i in self.activation:
+            for j in self.reactions:
+                if len(j.products) == 1:
+                    if type(j.products[0]) == Transcribe_Complex:
+                        if j.copy_number == i.name.split('-')[-1]:
+                            unique_prom.update({i:j})
+        self.unique_prom = unique_prom
+
+
     def PR_PRM_model_dependencies1(self):
         #Use the positions of RNAP on the list(either position 1 or 3 - zero based indexing - to determine which reactions are affected
 
@@ -753,20 +784,22 @@ class NextReactionMethod(object):
                         if j == 1:
                             for k in self.species:
                                 if type(k) == DNA:
-                                    if k.name == 'PRM':
-                                        V = [val for val in self.reactions if type(val.products[0]) == Transcribe_Complex and val.products[0].prom_rep == k.name]
-                                        assert len(V) == 1
-                                        reaction_list.append(V[0])
+                                    if k.name.split('-')[0] == 'PRM':
+                                        if k.mol_number == l:
+                                            V = [val for val in self.reactions if type(val.products[0]) == Transcribe_Complex and val.products[0].prom_rep == k.name]
+                                            assert len(V) == 1
+                                            reaction_list.append(V[0])
                             if l == 1:
                                 if config[i][j+1] == 'R':
                                     PR_PRM_isomer_const.append(i)
                         elif j == 3:
                             for k in self.species:
                                 if type(k) == DNA:
-                                    if k.name == 'PR':
-                                        V = [val for val in self.reactions if type(val.products[0]) == Transcribe_Complex and val.products[0].prom_rep == k.name]
-                                        assert len(V) == 1
-                                        reaction_list.append(V[0])
+                                    if k.name.split('-')[0] == 'PR':
+                                        if k.mol_number == l:
+                                            V = [val for val in self.reactions if type(val.products[0]) == Transcribe_Complex and val.products[0].prom_rep == k.name]
+                                            assert len(V) == 1
+                                            reaction_list.append(V[0])
                 if len(reaction_list) != 0:
                     temp.update({i:reaction_list})
             PR_PRM_transcription_states.update({l:temp})
@@ -818,11 +851,7 @@ class NextReactionMethod(object):
 
         current_PR_PRM_config1 = np.argmax(Y)
 
-        Q = [val for val in self.occupancy_reaction1.keys() if val == current_PR_PRM_config1]
-        if len(Q) == 1:
-            prob_value = probability_configuration_list[current_PR_PRM_config1]
-        else:
-            prob_value = 0
+        prob_value = probability_configuration_list[current_PR_PRM_config1]
 
         X = (current_PR_PRM_config1, prob_value)
 
@@ -846,24 +875,6 @@ class NextReactionMethod(object):
                     if self.reactions[j] == R:
                         R.get_det_tau(system_time)
                         tau_list[j] = R.tau
-            
-            L = [i for i in self.occupancy_reaction1.values() if i not in self.occupancy_reaction1[copy][val[0]]]
-            if len(L) != 0:
-                for i in L:
-                    i.get_propensity(transcript=0)
-                    for j in range(len(self.reactions)):
-                        if self.reactions[j] == i:
-                            i.get_det_tau(system_time)
-                            tau_list[j] = i.tau
-
-        else:
-            L = [j for j in self.reactions if j in self.occupancy_reaction1[copy].values()]
-            for i in L:
-                i.get_propensity(transcript=val[1])
-                for j in range(len(self.reactions)):
-                    if self.reactions[j] == i:
-                        i.get_det_tau(system_time)
-                        tau_list[j] = i.tau 
     
     def PRE_model_dependencies2(self):
         "This is the statistical binding model for the PRE promoter"
@@ -881,10 +892,11 @@ class NextReactionMethod(object):
                     if config2[i][j] == 'RNAP':
                         for k in self.species:
                             if type(k) == DNA:
-                                if k.name == 'PRE':
-                                    V = [val for val in self.reactions if type(val.products[0]) == Transcribe_Complex and val.products[0].prom_rep == k.name]
-                                    assert len(V) == 1
-                                    reaction_list.append(V[0])  
+                                if k.name.split('-')[0] == 'PRE':
+                                    if k.mol_number == l:
+                                        V = [val for val in self.reactions if type(val.products[0]) == Transcribe_Complex and val.products[0].prom_rep == k.name]
+                                        assert len(V) == 1
+                                        reaction_list.append(V[0])  
                         if l == 1:     
                             if config2[i][j-1] == 'CII':
                                 PRE_isomer_const.append(i)
@@ -926,11 +938,7 @@ class NextReactionMethod(object):
         
         current_PRE_config2 = np.argmax(Y)
 
-        Q = [val for val in self.occupancy_reaction2 if val == current_PRE_config2]
-        if len(Q) == 0:
-            prob_value = 0:
-        else:
-            prob_value = probability_configuration_list[current_PRE_config2]
+        prob_value = probability_configuration_list[current_PRE_config2]
 
         X = (current_PRE_config2, prob_value)
 
@@ -952,13 +960,6 @@ class NextReactionMethod(object):
                     if self.reactions[j] == R:
                         R.get_det_tau(system_time)
                         tau_list[j] = R.tau
-        else:
-            for i in sim.occupancy_reaction2[copy].values():
-                i.get_propensity(transcript=val[1])
-                for j in range(len(self.reactions)):
-                    if self.reactions[j] == i:
-                        i.get_det_tau(system_time)
-                        tau_list[j] = i.tau
 
     def PL_model_dependencies3(self):
 
@@ -973,15 +974,16 @@ class NextReactionMethod(object):
                 reaction_list = []
                 for j in range(len(config3[i])):
                     if config3[i][j] == 'RNAP':
-                        for l in self.species:
-                            if type(l) == DNA:
-                                if l.name == 'PL':
-                                    V = [val for val in self.reactions if type(val.products[0]) == Transcribe_Complex and val.products[0].prom_rep == l.name]
-                                    assert len(V) == 1
-                                    reaction_list.append(V[0])
+                        for k in self.species:
+                            if type(k) == DNA:
+                                if k.name.split('-')[0] == 'PL':
+                                    if k.mol_number == l:
+                                        V = [val for val in self.reactions if type(val.products[0]) == Transcribe_Complex and val.products[0].prom_rep == k.name]
+                                        assert len(V) == 1
+                                        reaction_list.append(V[0])
                 if len(reaction_list) != 0:
                     temp.update({i:reaction_list})
-            PL_transcrpt_states.update({l:temp})
+            PL_transcript_states.update({l:temp})
         self.occupancy_reaction3 = PL_transcript_states
 
     def PL_stat_energy_model_selection3(self):
@@ -1020,11 +1022,7 @@ class NextReactionMethod(object):
 
         current_PL_config3 =  np.argmax(Y)
 
-        Q = [val for val in self.occupancy_reaction3 if val == current_PL_config3]
-        if len(Q) == 0:
-            prob_value = 0
-        else:
-            prob_value = probability_configuration_list[current_PL_config3] 
+        prob_value = probability_configuration_list[current_PL_config3] 
 
         X = (current_PL_config3, prob_value)
 
@@ -1041,20 +1039,13 @@ class NextReactionMethod(object):
                     if self.reactions[j] == R:
                         R.get_det_tau(system_time)
                         tau_list[j] = R.tau
-        else:
-            for i in self.occupancy_reaction3[copy].values():
-                i.get_propensity(transcript=val[1])
-                for j in range(len(self.reactions)):
-                    if self.reactions[j] == i:
-                        i.get_det_tau(system_time)
-                        tau_list[j] = i.tau
 
     def promoter_occupancy_states(self, system_time, tau_list):
         switch_list = ['PR_PRM','PRE','PL']
         switch = {}
         for i in switch_list:
             L = []
-            for j in range(len(self.copy_number)):
+            for j in range(self.copy_number):
                 L.append(j+1)
             np.random.shuffle(L)
             switch.update({i:L})
@@ -1063,10 +1054,11 @@ class NextReactionMethod(object):
         N = [self.PR_PRM_model_config_update1,self.PRE_model_config_update2,self.PL_model_config_update3]
         V = [val for val in zip(switch_list,M,N)]
 
-        while np.sum(switch_dict.values()) > 0:
-            F = np.random.shuffle(range(3))
+        while np.sum(switch.values()) > 0:
+            F = range(3)
+            np.random.shuffle(F)
             for i in F:
-                Y = switch_dict[V[i][0]]
+                Y = switch[V[i][0]]
                 if len(Y) > 0:
                     temp = []
                     val = Y[0]
@@ -1076,7 +1068,20 @@ class NextReactionMethod(object):
                         if j != 0:
                             temp.append(Y[j])
                     switch[V[i][0]] = temp
-                    
+
+    def reverse_initiation_constant(self, system_time, tau_list):
+        V = [val for val in self.activation if val.count != 0]
+        for i in V:
+            i.count -= 1
+            for j in self.unique_prom.keys():
+                if j == i:
+                    R = self.unique_prom[j]
+                    R.get_propensity()
+                    for k in range(len(self.reactions)):
+                        if self.reactions[k] == R:
+                            R.get_det_tau(system_time)
+                            tau_list[k] = R.tau
+
     def check_transcription_elong_initiation(self, reaction_index): #This function detects is an inititation elongation reaction has taken place. Updates the status of promoter occupancy
         """This function should be done prior to stat_occup change methods.
         If elongation reaction has occured, it will update the promoter status to unbound, permitting future initiation of transcription"""
@@ -1246,11 +1251,13 @@ class NextReactionMethod(object):
         self.P1_tot = P1_tot
         self.P2_tot = P2_tot
 
-    def NRM_initialization_protocol(self,reaction_constants):
+    def NRM_initialization_protocol(self,DNA_init,reaction_constants):
+
+        self.create_DNA_objects(DNA_init)
 
         self.create_transcribe_species()
 
-        self.create_activation_species()
+        self.create_transcript_activation_species()
 
         self.create_transcribe_reactions(reaction_constants)
         
@@ -1264,7 +1271,6 @@ class NextReactionMethod(object):
 
         self.update_reaction_list()
 
-        self.unique_reactions_promoter()
 
     def promoter_decoupling(self, reaction_index, tau_list, system_time):
 
@@ -1276,9 +1282,9 @@ class NextReactionMethod(object):
 
         self.check_translation_elongation_complete(reaction_index)
 
-        self.reverse_initiation_constants(system_time,tau_list)
-           
-    def NRM_execution(self, step, leap, end, reaction_constants):
+        self.reverse_initiation_constant(system_time, tau_list)
+   
+    def NRM_execution(self, step, leap, end, DNA_init, reaction_constants):
 
         system_time = 0
 
@@ -1286,7 +1292,7 @@ class NextReactionMethod(object):
 
         self.Ribosome_elong_check = 0
 
-        self.NRM_initialization_protocol(reaction_constants)
+        self.NRM_initialization_protocol(DNA_init,reaction_constants)
 
         k = leap
 
@@ -1371,11 +1377,9 @@ class NextReactionMethod(object):
                     P2_tot += i.count
                 P2_tot_m = (P2_tot/float(6.02e23)) * (1/float(cell_volume))
 
-
                 prot_rate = (((0.002)*(P1_m)/float(P1_tot_m)) + ((0.6)*(P2_m)/float(P2_tot_m)))/float(0.002+0.6)
                 self.plot_dict['prot_lyt'].append(prot_rate)
-
-
+                
                 k += leap
 
                 if k >= float(end):
@@ -1388,18 +1392,6 @@ class NextReactionMethod(object):
                         self.plot_dict[j].append(self.plot_dict[j][-1])
                 break
 
-            hit = 0
-            if i > 0:
-
-                self.promoter_decoupling(reaction_index, tau_list, system_time)
-                for j in self.activation:
-                    hit += j.count
-            if hit:
-                for j in self.activation:
-                    print j.name, j.count
-                print i,'one'
-                break
-
                 self.increment_calc(cell_volume)
                 
                 for j in self.species:
@@ -1407,17 +1399,6 @@ class NextReactionMethod(object):
             
 
             self.promoter_occupancy_states(system_time,tau_list)
-
-            hit = 0
-
-            for j in self.activation:
-                if j.count > 1:
-                    hit += 1
-
-            if hit:
-                for j in self.activation:
-                    print j.name,j.count,i,'two'
-                break
 
             reaction_index = np.argmin(tau_list)
 
