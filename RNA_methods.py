@@ -49,7 +49,7 @@ def RNA_reaction_init(self, rna_object, RNA_reaction_init, system_time, tau_list
     return Y
 
 def create_elong_dep_graph(self):
-    for i in self.transaltion_elong_dict.keys():
+    for i in self.translation_elong_dict.keys():
         for j,p in enumerate(self.translation_elong[i]):
             if j == 0:
                 self.elong_dep_graph[i].update({p:[]})
@@ -96,6 +96,7 @@ def update_dep_graph(self, reaction_list):
 #Initialize mRNA function gets rna_object from output of RNA_synthesis method
 def initialize_mRNA_times(self, rna_object, system_time):
     self.RNA_times[rna_object.name].update({ran_object.mol_numb:[system_time]})
+    self.translate_times[ran_object.name].update({rna_object.mol_numb:;[]})
 
 def decay_mRNA_times(self, reaction_obj, system_time):
     if reaction_obj.reactants == reaction_obj.products:
@@ -103,14 +104,22 @@ def decay_mRNA_times(self, reaction_obj, system_time):
             if type(reaction_obj.reactants[0]) == mRNA:
                 X = reaction_obj.reactants[0]
                 self.RNA_times[X.name][X.mol_numb].append(system_time)
+                temp = {}
+                for i in self.translate_times[X.name].keys():
+                    if i != X.mol_numb:
+                        temp.update({i:self.translate_times[X.name][i]})
+                self.translate_times[X.name] = temp
 
-def check_elong_translate_(self, reaction_obj, system_time, tau_list):
-    V = [val for val in reaction_obj.products if len(val.name.split('-')) > 1 and len([i for i in val.name.split('-') if i in mRNA_list]) == 1 and val.name.split('-')[-1] != 'Ribosome']
+def check_elong_translate(self, reaction_obj, system_time, tau_list):
+    V = [val for val in reaction_obj.products if len(val.name.split('-')) > 1 and len([i for i in val.name.split('-') if i in self.mRNA_list]) == 1 and val.name.split('-')[-1] != 'Ribosome']
+    print V.name,type(V)
     if len(V) == 1:
         if V[0].count:
+            reaction_obj.get_propensity(const=True)
+        else:
             reaction_obj.get_propensity()
-            reaction_obj.get_det_tau(system_time)
-            tau_list[self.total_reactions.index(reaction_obj)] = reaction_obj.tau
+        reaction_obj.get_det_tau(system_time)
+        tau_list[self.total_reactions.index(reaction_obj)] = reaction_obj.tau
 
 def engage_elong_dep(self, reaction_obj, system_time, tau_list):
     QQ = [val for val in reaction_obj.products if len(val.name.split('-')) > 1 and len([i for i in val.name.split('-') if i in self.mRNA_list]) == 1 and val.name.split('-')[-1] != 'Ribosome']
@@ -122,26 +131,46 @@ def engage_elong_dep(self, reaction_obj, system_time, tau_list):
                     i.get_propensity()
                     i.get_det_tau(system_time)
                     tau_list[self.total_reactions.index(i)] = i.tau
-
+                    
 def RNA_translate_init_time(self, reaction_obj, system_time):
     V = [val for val in reaction_obj.reactants if len(val.name.split('-')[0]) > 1 and val.name.split('-')[-1] == 'Ribosome']
     if len(V) == 1:
         X = [val for val in reaction_obj.products if type(val) == RNA]
         if len(X) == 1:
-            self.translate_times[X.name].update({X.mol_numb:system_time})
+            self.translate_times[X.name][X.mol_numb].append(system_time)
 
 def RNA_translate_finish_time(self,reaction_obj):
     V = [val for val in reaction_obj.products if type(val) == Protein]
     if len(V) == 1:
-        Q = [val for val in self.translate_times[V[0].name].values() if val == np.max(self.translate_times[V[0].name].values())]
-        assert len(Q) == 1
-        temp = {}
+        compare_dict = {}
         for i in self.translate_times[V[0].name].keys():
-            if self.translate_times[V[0].name][i] == Q[0]:
-                self.RNA_output[V[0].name][i] += 1
-            else:
-                temp.update({i:self.transalte_times[V[0].name][i]})
-        self.translate_times[V[0].name] = temp
+            value = self.translate_times[V[0].name][i][0]
+            compare_dict.update({i:value})
+        Q = [val for val in compare_dict.values() if val == np.min(compare_dict.values())]
+        assert len(Q) == 1
+        M = [val for val in compare_dict.keys() if compare_dict[val] == Q[0]]
+        self.RNA_output[V[0].name][M[0]] += 1
+        L = self.translate_times[V[0].name][M[0]]
+        temp = []
+        for i in range(len(L)):
+            if i != 0:
+                temp.append(L[i])
+        self.translate_times[V[0].name][M[0]] = temp
+
+def create_RNA_data_structures(self):
+    RNA_times = {}
+    translate_times = {}
+    RNA_output = {}
+    elong_dep_graph = {}
+    for i in self.mRNA_list:
+        RNA_times.update({i:{}})
+        translate_times.update({i:{}})
+        RNA_output.update({i:{}})
+        elong_dep_graph.update({i:{}})
+    self.RNA_times = RNA_times
+    self.translate_times = translate_times
+    self.RNA_output = RNA_output
+    self.elong_dep_graph = elong_dep_graph
 
 def check_initialize_RNA_objects(self, reaction_obj, RNA_reaction_init, system_time, tau_list):
     X = self.RNA_synthesis(reaction_obj)
