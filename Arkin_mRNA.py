@@ -1281,8 +1281,9 @@ class NextReactionMethod(object):
         if len(V) == 1:
             compare_dict = {}
             for i in self.translate_times[V[0].name].keys():
-                value = self.translate_times[V[0].name][i][0]
-                compare_dict.update({i:value})
+                if len(self.translate_times[V[0].name][i]) > 0:
+                    value = self.translate_times[V[0].name][i][0]
+                    compare_dict.update({i:value})
             Q = [val for val in compare_dict.values() if val == np.min(compare_dict.values())]
             assert len(Q) == 1
             M = [val for val in compare_dict.keys() if compare_dict[val] == Q[0]]
