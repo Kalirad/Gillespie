@@ -1237,6 +1237,7 @@ class NextReactionMethod(object):
 
     def initialize_mRNA_times(self, rna_object, system_time):
         self.RNA_times[rna_object.name].update({rna_object.mol_numb:[system_time]})
+        self.translate_times[rna_object.name].update({rna_object.mol_numb:[]})
 
     def decay_mRNA_times(self, reaction_obj, system_time):
         if len(reaction_obj.reactants) == 1:
@@ -1273,8 +1274,7 @@ class NextReactionMethod(object):
         if len(V) == 1:
             X = [val for val in reaction_obj.products if type(val) == RNA]
             if len(X) == 1:
-                self.translate_times[X.name][X.mol_numb].append(system_time)
-
+                self.translate_times[X[0].name][X[0].mol_numb].append(system_time)
 
     def RNA_translate_finish_time(self,reaction_obj):
         V = [val for val in reaction_obj.products if type(val) == Protein]
@@ -1294,13 +1294,11 @@ class NextReactionMethod(object):
                     temp.append(L[i])
             self.translate_times[V[0].name][M[0]] = temp
 
-
     def check_initialize_RNA_objects(self, V, RNA_reaction_init, system_time, tau_list):
         X = self.RNA_synthesis(reaction_obj)
         Y = self.RNA_reaction_init(X, RNA_reaction_init, system_time, tau_list)
         self.update_dep_graph(Y)
         self.update_elong_dep(Y)
-
         self.initialize_mRNA_times(rna_object, system_time)
 
     def create_RNA_data_structures(self):

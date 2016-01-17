@@ -96,7 +96,7 @@ def update_dep_graph(self, reaction_list):
 #Initialize mRNA function gets rna_object from output of RNA_synthesis method
 def initialize_mRNA_times(self, rna_object, system_time):
     self.RNA_times[rna_object.name].update({ran_object.mol_numb:[system_time]})
-    self.translate_times[ran_object.name].update({rna_object.mol_numb:;[]})
+    self.translate_times[rna_object.name].update({rna_object.mol_numb:;[]})
 
 def decay_mRNA_times(self, reaction_obj, system_time):
     if reaction_obj.reactants == reaction_obj.products:
@@ -137,15 +137,17 @@ def RNA_translate_init_time(self, reaction_obj, system_time):
     if len(V) == 1:
         X = [val for val in reaction_obj.products if type(val) == RNA]
         if len(X) == 1:
-            self.translate_times[X.name][X.mol_numb].append(system_time)
+            print 'yes'
+            self.translate_times[X[0].name][X[0].mol_numb].append(system_time)
 
 def RNA_translate_finish_time(self,reaction_obj):
     V = [val for val in reaction_obj.products if type(val) == Protein]
     if len(V) == 1:
         compare_dict = {}
         for i in self.translate_times[V[0].name].keys():
-            value = self.translate_times[V[0].name][i][0]
-            compare_dict.update({i:value})
+            if len(self.translate_times[V[0].name][i]) > 0:
+                value = self.translate_times[V[0].name][i][0]
+                compare_dict.update({i:value})
         Q = [val for val in compare_dict.values() if val == np.min(compare_dict.values())]
         assert len(Q) == 1
         M = [val for val in compare_dict.keys() if compare_dict[val] == Q[0]]
