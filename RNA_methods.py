@@ -137,7 +137,6 @@ def RNA_translate_init_time(self, reaction_obj, system_time):
     if len(V) == 1:
         X = [val for val in reaction_obj.products if type(val) == RNA]
         if len(X) == 1:
-            print 'yes'
             self.translate_times[X[0].name][X[0].mol_numb].append(system_time)
 
 def RNA_translate_finish_time(self,reaction_obj):

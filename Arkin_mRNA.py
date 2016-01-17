@@ -1189,7 +1189,6 @@ class NextReactionMethod(object):
         for i in self.species:
             if type(i) == Species and i.name == 'Ribosome':
                 spec_obj = Species(name = name1, count=False)
-                self.species.append(spec_obj)
                 R1 = Reaction([rna_object,i],[spec_obj],RNA_reaction_init[0])
         R2 = Reaction([rna_object],[rna_object],RNA_reaction_init[1])
         
@@ -1251,14 +1250,12 @@ class NextReactionMethod(object):
                 self.translate_times[X.name] = temp
 
     def check_elong_translate(self, reaction_obj, system_time, tau_list):
-        V = [val for val in reaction_obj.products if len(val.name.split('-')) > 1 and len([i for i in val.name.split('-') if i in self.mRNA_list]) == 1 and val.name.split('-')[-1] != 'Ribosome']
-        if len(V) == 1:
-            if V[0].count:
-                reaction_obj.get_propensity(const=True)
-            else:
-                reaction_obj.get_propensity()
-            reaction_obj.get_det_tau(system_time)
-            tau_list[self.total_reactions.index(reaction_obj)] = reaction_obj.tau
+        if reaction_obj.products[0].count:
+            reaction_obj.get_propensity(const=True)
+        else:
+            reaction_obj.get_propensity()
+        reaction_obj.get_det_tau(system_time)
+        tau_list[self.total_reactions.index(reaction_obj)] = reaction_obj.tau
 
     def engage_elong_dep(self, reaction_obj, system_time, tau_list):
         if len(reaction_obj.reactants) == len(reaction_obj.products):
@@ -1296,11 +1293,11 @@ class NextReactionMethod(object):
             self.translate_times[V[0].name][M[0]] = temp
 
     def check_initialize_RNA_objects(self, V, RNA_reaction_init, system_time, tau_list):
-        X = self.RNA_synthesis(reaction_obj)
+        X = self.RNA_synthesis(V)
         Y = self.RNA_reaction_init(X, RNA_reaction_init, system_time, tau_list)
         self.update_dep_graph(Y)
         self.update_elong_dep(Y)
-        self.initialize_mRNA_times(rna_object, system_time)
+        self.initialize_mRNA_times(X, system_time)
 
     def create_RNA_data_structures(self):
         RNA_times = {}
@@ -1541,6 +1538,8 @@ class NextReactionMethod(object):
         self.mRNA_list = ['Cro','CI','CII','CIII','N']
 
         self.create_RNA_data_structures()
+
+        self.create_elong_dep_graph()
         
         self.RNA_synth_react = []
 
@@ -1673,7 +1672,7 @@ class NextReactionMethod(object):
                         self.engage_isomer_reactions(system_time, tau_list, j)
 
                     elif len(QQ) == 1:
-                        self.check_elong_translate(QQ, j, system_time, tau_list)
+                        self.check_elong_translate(j, system_time, tau_list)
 
                     else:
                         j.get_propensity()
