@@ -196,6 +196,28 @@ class IsomerComplex(Species):
         self.promoter_state = promoter_state
         self.dna = dna
 
+class Translate_Elong(Species):
+    
+    def __init__(self, name, rna, nucleotide, count=False):
+        """Initiate Translation elongation species. This object
+        will be a great boon when dealing with mRNA methods.
+
+        Parameters
+
+        ----------
+
+        name : str
+
+        rna : The name of the RNA object it is associated with 
+
+        nucleotide : int, Corresponds to position on mRNA transcript
+
+        count : int
+        """
+        Species.__init__(self, name, count=False)
+        self.rna = rna
+        self.nucleotide = nucleotide
+
 class Reaction(object):
 
     def __init__(self, reactants, products, ks):
@@ -409,7 +431,6 @@ class NextReactionMethod(object):
                 self.species.append(IsomerComplex(name1, 0, i.name, count=False))
                 name2 = 'Open' + '-' + i.name + '-' + str(i.mol_number)
                 self.species.append(IsomerComplex(name2, 1, i.name, count=False))
-
 
     def create_transcript_activation_species(self):
         activation = []
@@ -702,7 +723,6 @@ class NextReactionMethod(object):
                 hold += temp_list[i]
         self.transcription_elong_reactions = hold
 
-
     def create_translation_elongation_species(self):
         translation_species_dict = {}
         for i in self.species:
@@ -710,7 +730,7 @@ class NextReactionMethod(object):
                 translation_species_list = []
                 for j in range(i.rna_length):
                     name = str(i.name) + '-' + str(j)
-                    translation_species_list.append(Species(name,count=0))
+                    translation_species_list.append(Translate_Elong(name, i.name, j, count=0))
                 translation_species_dict.update({i:translation_species_list})
         self.translation_elong_species = translation_species_dict
 
@@ -718,23 +738,27 @@ class NextReactionMethod(object):
         translation_react_dict = {}
         translation_elong_dict = {}
         for i in self.translation_elong_species.keys():
-            translation_reactions = []
+            translation_reactions1 = []
+            translation_reactions2 = []
             Y = self.translation_elong_species[i]
             for j in range(len(Y)):
                 if j == 0:
-                    translation_reactions.append(Reaction([Y[j]],[Y[j+1]],(self.k_translation_elong,0)))
+                    translation_reactions1.append(Reaction([Y[j]],[Y[j+1]],(self.k_translation_elong,0)))
+                    translation_reactions2.append(Reaction([Y[j]],[Y[j+1]],(self.k_translation_elong,0)))
                 elif 0 < j < (len(Y) - 1):
-                    translation_reactions.append(Reaction([Y[j]],[Y[j+1]],(self.k_translation_elong,0)))
+                    translation_reactions1.append(Reaction([Y[j]],[Y[j+1]],(self.k_translation_elong,0)))
+                    translation_reactions2.append(Reaction([Y[j]],[Y[j+1]],(self.k_translation_elong,0)))
                 elif j == (len(Y) - 1):
                     for k in self.species:
                         if type(k) == Protein:
                             if k.tag_rna == i.tag_rna:
                                 for l in self.species:
                                     if l.name == 'Ribosome':
-                                        translation_reactions.append(Reaction([Y[j]],[k,l],(self.k_translation_elong,0)))
-            translation_react_dict.update({i:translation_reactions})
-            translation_elong_dict.update({i.name:translation_reactions})
-
+                                        translation_reactions1.append(Reaction([Y[j]],[k,l],(self.k_translation_elong,0)))
+                                        translation_reactions2.append(Reaction([Y[j]],[k,l],(self.k_translation_elong,0)))
+            translation_react_dict.update({i:translation_reactions1})
+            translation_elong_dict.update({i.name:translation_reactions2})
+    
         Y = translation_react_dict.values()
 
         for i in range(len(Y)):
@@ -743,7 +767,7 @@ class NextReactionMethod(object):
                 hold += Y[i]
         self.translation_elong_reactions = hold
         self.translation_elong_dict = translation_elong_dict
-        
+               
     def update_reaction_list(self):
         self.total_reactions = self.reactions + self.transcription_elong_reactions + self.translation_elong_reactions
 
@@ -1174,30 +1198,35 @@ class NextReactionMethod(object):
                 else:
                     self.elong_dep_graph[i].update({p:[self.translation_elong_dict[i][j-1]]})
 
+    def find_first_translate_elongation(self):
+     #Makes a dictionary with the RNA name as keys and the first elongation reaction object 0 -> 1 as value
+        find_elongate = {}
+        for i in self.translation_elong_dict.keys():
+            V = [val for val in self.translation_elong_dict[i] if len([j for j in val.reactants if type(j) == Translate_Elong and j.nucleotide == 0]) == 1]
+            assert len(V) == 1
+            find_elongate.update({i:V[0]})
+        self.find_elongate = find_elongate
+
     def RNA_synthesis(self, V):
         for i in self.species:
             if type(i) == RNA:
                 if i.name == V[0].name:
-                    name1 = i.name + '-' + str(i.count)
                     R = RNA(name = i.name, tag_rna = i.tag_rna, rna_length = i.rna_length, promoter_affiliation = i.promoter_affiliation, mol_numb = i.count, \
                         pre_termination = i.pre_termination, count = 1)
                     self.RNA_output[R.name].update({R.mol_numb:0})
         return R
 
-    def RNA_reaction_init(self, rna_object, RNA_reaction_init, system_time, tau_list):
-        name1 = rna_object.name + '-' + 'Ribosome'
+    def RNA_reaction_init(self, rna_obj, RNA_reaction_init, system_time, tau_list):
+        name1 = rna_obj.name + '-' +  str(rna_obj.mol_numb) + '-' + 'Ribosome'
         for i in self.species:
             if type(i) == Species and i.name == 'Ribosome':
                 spec_obj = Species(name = name1, count=False)
-                R1 = Reaction([rna_object,i],[spec_obj],RNA_reaction_init[0])
-        R2 = Reaction([rna_object],[rna_object],RNA_reaction_init[1])
-        
-        V = [val for val in self.translation_elong_dict[rna_object.name] if \
-        len([i for i in val.reactants if i.name.split('-')[0] == rna_object.name.split('-')[0] and i.name.split('-')[-1] == str(0)]) != 0]
+                R1 = Reaction([rna_obj,i],[spec_obj],RNA_reaction_init[0])
+        R2 = Reaction([rna_obj],[rna_obj],RNA_reaction_init[1])
 
-        R3 = V[0]
+        R3 = self.find_elongate[rna_obj.name]
         
-        R4 = Reaction([spec_obj],[rna_object,R3.reactants[0]],(self.k_translation_elong,0))
+        R4 = Reaction([spec_obj],[rna_obj,R3.reactants[0]],(self.k_translation_elong,0))
         X = [R1,R2,R4]
         for i in X:
             self.total_reactions.append(i)
@@ -1494,7 +1523,13 @@ class NextReactionMethod(object):
         self.reverse_initiation_constant(system_time, tau_list)
 
         self.reverse_stim_constant()
-   
+
+    def save_stat_method(self):
+        name = 'stat_rna'
+        rna_file = open(name,'w')
+        obj = (self.plot_dict, self.RNA_output, self.RNA_times)
+        pickle.dump(obj,rna_file)
+       
     def NRM_execution(self, step, leap, end, DNA_init, reaction_constants, RNA_reaction_init):
 
         system_time = 0
@@ -1540,6 +1575,8 @@ class NextReactionMethod(object):
         self.create_RNA_data_structures()
 
         self.create_elong_dep_graph()
+
+        self.find_first_translate_elongation()
         
         self.RNA_synth_react = []
 
@@ -1643,10 +1680,9 @@ class NextReactionMethod(object):
 
             for j in dependency_list:
                 if j == self.total_reactions[reaction_index]:
-                    V = [val for val in j.products if len(j.products) != 1 and type(val) == RNA]
+                    V = [val for val in j.products if len(j.products) != 1 and type(val) == RNA and val.mol_numb == 0]
                     
-                    QQ = [val for val in j.products if len(val.name.split('-')) > 1 \
-                    and len([i for i in val.name.split('-') if i in self.mRNA_list]) == 1 and val.name.split('-')[-1] != 'Ribosome']
+                    QQ = [val for val in j.products if type(val) == Translate_Elong]
                     
                     if len(V) == 1:
                         self.check_initialize_RNA_objects(V, RNA_reaction_init, system_time, tau_list)
@@ -1665,8 +1701,7 @@ class NextReactionMethod(object):
                 else:
                     Q = [val for val in self.isomer_react_dict.keys() if val == j]
 
-                    QQ = [val for val in j.products if len(val.name.split('-')) > 1 \
-                    and len([i for i in val.name.split('-') if i in self.mRNA_list]) == 1 and val.name.split('-')[-1] != 'Ribosome']
+                    QQ = [val for val in j.products if type(val) == Translate_Elong]
                 
                     if len(Q) == 1:
                         self.engage_isomer_reactions(system_time, tau_list, j)
@@ -1688,3 +1723,6 @@ class NextReactionMethod(object):
                 self.species_dict[j].append(j.count)
             self.species_dict['time'].append(system_time)
             self.species_dict['cell_vol'].append(cell_volume)
+
+        self.save_stat_method()
+
