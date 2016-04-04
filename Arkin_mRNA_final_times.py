@@ -1167,6 +1167,7 @@ class NextReactionMethod(object):
 
         if len(V) == 1:
             self.RNAP_elong_check += 1
+    
     def check_transcription_elongation_complete(self, reaction_index):
         R = self.total_reactions[reaction_index]
         V = [val for val in R.products if val.name == 'RNAP']
@@ -1175,7 +1176,7 @@ class NextReactionMethod(object):
 
     def check_translation_elongation_initiation(self, reaction_index):
         R = self.total_reactions[reaction_index]
-        V = [val for val in R.reactants if len(val.name.split('-')) == 2 and val.name.split('-')[1] == 'Ribosome']
+        V = [val for val in R.products if len(R.products) > 1 and type(val) == Translate_Elong]
         if len(V) == 1:
             self.Ribosome_elong_check += 1
 
@@ -1216,6 +1217,7 @@ class NextReactionMethod(object):
         for i in self.species:
             if type(i) == Species and i.name == 'Ribosome':
                 spec_obj = Species(name = name1, count=False)
+                self.rib_complex_species.append(spec_obj)
                 R1 = Reaction([rna_obj,i],[spec_obj],RNA_reaction_init[0])
         R2 = Reaction([rna_obj],[rna_obj],RNA_reaction_init[1])
 
@@ -1224,9 +1226,9 @@ class NextReactionMethod(object):
         R4 = Reaction([spec_obj],[rna_obj,R3.reactants[0]],(self.k_translation_elong,self.k_translation_elong))
         X = [R1,R2,R4]
         for i in X:
-            self.total_reactions.append(i)
             i.get_propensity()
             i.get_tau(system_time)
+            self.total_reactions.append(i)
             tau_list.append(i.tau)
         Y = [R1,R2,R3,R4]
 
@@ -1236,7 +1238,7 @@ class NextReactionMethod(object):
         #First way of updating dependency graph - Cunning way - reaction list is the Y output from previous method
         temp_graph = {}
         for i in reaction_list:
-            hold = i.reactants + i.products
+            hold = list(set(i.reactants + i.products))
             dep_rec = []
             for j in reaction_list:
                 set_value = [val for val in hold if val in j.reactants]
@@ -1328,9 +1330,8 @@ class NextReactionMethod(object):
                 elif i.name == 'Ribosome':
                     num = int(np.round((500*1e-9)*(6.02*1e23)*cell_volume))
                     count = 0
-                    V = [val for val in self.species if len(val.name.split('-')) == 2 and val.name.split('-')[1] == 'Ribosome']
                     elong = self.Ribosome_elong_check
-                    for j in V:
+                    for j in self.rib_complex_species:
                         count += j.count
                     assert num >= (i.count + count + elong)
                     if num > (i.count + count + elong):
@@ -1522,6 +1523,8 @@ class NextReactionMethod(object):
         self.find_last_translate_elongation()
         
         self.RNA_synth_react = []
+
+        self.rib_complex_species = []
 
         self.reaction_check = 0
 
