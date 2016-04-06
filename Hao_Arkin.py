@@ -74,7 +74,50 @@ class DNA(Species):
 
 class RNA(Species):
 
-    def __init__(self, name, tag_rna, rna_length,promoter_affiliation, time, pool_num, curr_pool, absolute, pre_termination=False, count=False): 
+    def __init__(self, name, tag_rna, rna_length,promoter_affiliation, time, pool_num, curr_pool, absolute, pre_termination=False, count=False):
+        """Creates the RNA species class objects.
+
+        Parameters
+        ----------
+
+        name : str
+
+        tag_rna : integer
+                Provides an integer for each distinct rna species. This integer is matched to the Protein class attribute tag_rna to link a particular
+                protein species to the RNA that produced it. This is used in the method to create translation elongation reactions and in calculating
+                the translation elongation rate
+
+        rna_length : integer
+                Integer value that will be used to create each individual nucletide object. That object is known as the Translate_Elong class.
+
+        promoter_affiliation : list
+                The list contains integers that represent unique promoters. The DNA object attribute tag_dna is the integer included in this list.
+                Important for determining which DNA object produces the RNA in question
+
+        time : integer
+                Provides an integer that serves as the time the curr_pool is operable. The curr_pool logs the number of initiation events that occur
+                in the given time period.
+
+        pool_num : integer
+                Integer for the number of operable pools desired for the simulation. The number of pools determines the number of periods in which 
+                the initiation events are logged
+
+        curr_pool : integer
+                The current operable pool. This integer is used as a key in the dictionary known as self.RNA_init (a property of this RNA object)
+                The value is the number of initiation events that occur in the current operable pool
+
+        absolute : integer
+                Integer is the key in the dictionary self.RNA_times (a property of the RNA object) which records the number of the test used to determine
+                the translation elong rate
+
+        pre_termination : bolean
+                Determines if the count of the RNA object is increased if a termination occurs during transcription of the polycistron (see Arkin publication)
+                for more details
+
+        count : integer:
+                The number of molecules present for the RNA object.
+
+        """
         Species.__init__(self, name, count)
         self.tag_rna = tag_rna
         self.rna_length = rna_length
@@ -86,6 +129,21 @@ class RNA(Species):
         self.pre_termination = pre_termination
 
     def create_rna_output(self):
+        """
+        Notes
+        -----
+
+        Create the dictionary which logs the number of initiation events occuring during each allocated time period. This procedure splits the time of the
+        simulation into even periods. In each period, the number of translation initiation events is logged. The curr_pool attribute specifies which time period
+        the simulation is in and which key is utilized in the dictionary.
+
+        Output
+        ------
+
+        self.RNA_init : dictionary
+                The dictionary with keys as even time periods (curr_pool) and values as the count of translation initiation event for the RNA
+
+        """
         temp = {}
         for i in range(self.pool_num+1):
             if i:
@@ -93,13 +151,51 @@ class RNA(Species):
         self.RNA_init = temp
 
     def create_rna_times(self):
+        """
+        Notes
+        -----
+
+        Initialize the dictionary that logs the time of elongation for a complete translation elongation event. This is done to determine:
+        a) The reaction rate order for the translation elongation process, b) If the k value is a correct value to yield the published translation rate
+        constant
+
+        Output
+        ------
+
+        self.RNA_time : dictionary
+
+        self.RNA_t_entry : list
+                logs the first elongation step. When the last elongation step is complete, the system time is subtracted by the first element in this list.
+                The resulting time difference is logged in the self.RNA_times
+
+        """
         self.RNA_times = {}
         self.RNA_t_entry = []
 
     def initialize_time(self, system_time):
+        """
+        Notes
+        -----
+
+        Saves the time in the self.RNA_t_entry after the first elongation step.
+        """
         self.RNA_t_entry.append(system_time)
         
     def end_elong(self, system_time):
+        """
+
+        Parameters
+        ----------
+
+        system_time : float
+                The current time of the system.
+        Notes
+        -----
+
+        This method is called when a final elongation step has been translated and executes the process described above
+        (subtracts system_time from the first element in the self.RNA_t_entry and logs it in the self.RNA_times dictionary).
+        The first element in the self.RNA_t_entry is then removed
+        """
         val = self.RNA_t_entry[0]
         del_t = system_time - val
         self.absolute += 1
@@ -108,9 +204,32 @@ class RNA(Species):
         self.RNA_t_entry = self.RNA_t_entry[1:len(self.RNA_t_entry)]
 
     def calculate_rate_init(self):
+        """
+        Notes
+        -----
+
+        In the event of translation initation, the count of the self.RNA_init dictionary is updated. The key -self.curr_pool (as described above)- gives the period which is 
+        currently logging initation events. These time segments are essential for determining a rate of transcription initiation.
+        """
         self.RNA_init[self.curr_pool] += 1
 
     def change_pool_attributes(self, system_time, track_leap):
+
+        """
+        Parameters
+        ----------
+
+        system_time : float
+                The current system time. This quantity is compared to the track_leap parameter. If the system_time is greater than track_leap, the curr_pool attribute must
+                change to reflect a new time period for logging initiation events.
+
+        track_leap : float
+
+        Notes
+        -----
+        The system_time is compared to the track_leap parameter. If the system_time is greater than track_leap, the curr_pool attribute must
+        change to reflect a new time period for logging initiation events.
+        """
         if system_time > self.time:
             self.time += track_leap
             self.curr_pool = int(self.time//track_leap)
